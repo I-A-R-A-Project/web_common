@@ -1,0 +1,40 @@
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+def downloader_script_from(start_path):
+    root = Path(start_path).resolve()
+    for candidate in (root, *root.parents):
+        script = candidate / "Downloader" / "download_manager.py"
+        if script.exists():
+            return script
+    return None
+
+
+def launch_downloader(entries, start_path):
+    script = downloader_script_from(start_path)
+    if script is None:
+        return False, "No se encontró Downloader/download_manager.py"
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        delete=False,
+        suffix=".json",
+        encoding="utf-8",
+    ) as handle:
+        json.dump(entries, handle, indent=2, ensure_ascii=False)
+        json_path = handle.name
+
+    subprocess.Popen([sys.executable, str(script), json_path], cwd=str(script.parent))
+    return True, ""
+
+
+def entry_from_url(url, path="", title="", download_type=None):
+    entry = {"url": url, "path": path or "", "title": title or ""}
+    if download_type:
+        entry["download_type"] = download_type
+    return entry
+
