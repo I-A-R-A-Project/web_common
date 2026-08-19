@@ -1,6 +1,11 @@
+import base64
 import json
+import re
 from datetime import datetime
 from pathlib import Path
+
+from PyQt6.QtCore import QBuffer, QIODevice
+from PyQt6.QtGui import QIcon, QPixmap
 
 
 def widget_url(widget):
@@ -13,6 +18,32 @@ def widget_url(widget):
     return "" if url == "about:blank" else url
 
 
+def _icon_data(icon):
+    if icon.isNull():
+        return ""
+    pixmap = icon.pixmap(32, 32)
+    if pixmap.isNull():
+        return ""
+    buffer = QBuffer()
+    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+    if not pixmap.save(buffer, "PNG"):
+        return ""
+    return base64.b64encode(bytes(buffer.data())).decode("ascii")
+
+
+def _icon_from_data(value):
+    if not isinstance(value, str) or not value:
+        return QIcon()
+    try:
+        data = base64.b64decode(value, validate=True)
+    except (ValueError, TypeError):
+        return QIcon()
+    pixmap = QPixmap()
+    if not pixmap.loadFromData(data, "PNG"):
+        return QIcon()
+    return QIcon(pixmap)
+
+
 def collect_tabs(tab_widget, skip_widgets=(), metadata_for_widget=None):
     skip_ids = {id(widget) for widget in skip_widgets if widget is not None}
     tabs = []
@@ -23,7 +54,13 @@ def collect_tabs(tab_widget, skip_widgets=(), metadata_for_widget=None):
         url = widget_url(widget)
         if not url:
             continue
-        entry = {"url": url}
+        entry = {
+            "url": url,
+            "title": tab_widget.tabText(index),
+        }
+        favicon = _icon_data(tab_widget.tabIcon(index))
+        if favicon:
+            entry["favicon"] = favicon
         if metadata_for_widget:
             metadata = metadata_for_widget(widget) or {}
             entry.update(metadata)
@@ -31,11 +68,29 @@ def collect_tabs(tab_widget, skip_widgets=(), metadata_for_widget=None):
     return tabs
 
 
+def restore_tab_metadata(tab_widget, index, entry):
+    title = entry.get("title")
+    if isinstance(title, str) and title:
+        tab_widget.widget(index).setProperty("_session_title", title)
+        tab_widget.setTabText(index, title)
+    tab_widget.setTabIcon(index, _icon_from_data(entry.get("favicon")))
+
+
+def is_navigation_title(title):
+    if not isinstance(title, str):
+        return False
+    value = title.strip().lower()
+    return bool(
+        re.match(r"^(https?://|file://|www\.)", value)
+        or ("." in value and " " not in value)
+    )
+
+
 def save_tab_session(path, tab_widget, skip_widgets=(), metadata_for_widget=None, extra=None):
     session_path = Path(path)
     session_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "version": 1,
+        "version": 2,
         "tabs": collect_tabs(tab_widget, skip_widgets, metadata_for_widget),
         "active_index": tab_widget.currentIndex(),
         "saved": datetime.now().isoformat(),
@@ -65,4 +120,3 @@ def load_tab_session(path):
         if isinstance(tab, dict) and isinstance(tab.get("url"), str) and tab.get("url")
     ]
     return payload
-
