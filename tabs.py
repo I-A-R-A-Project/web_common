@@ -173,6 +173,9 @@ class UnifiedWebEnginePage(QWebEnginePage):
         return popup_window.current_page()
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        from . import folder_viewer
+        if is_main_frame and url.scheme() == "browser-action":
+            return not folder_viewer.handle_action(self, url)
         if is_main_frame and url.scheme() == "file":
             local_path = url.toLocalFile()
             if self.folder_view_handler and local_path and Path(local_path).is_dir():
