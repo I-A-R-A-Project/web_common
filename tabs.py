@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
 from .navbar import BasicNavbar, address_to_url, save_web_page
 from .session import is_navigation_title
+from .folder_viewer import is_text_file
 
 
 VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mkv", ".avi", ".mov")
@@ -24,6 +25,7 @@ class TabbedPopupWindow(QMainWindow):
         *,
         folder_view_handler=None,
         special_local_handler=None,
+        file_view_handler=None,
         view_factory=None,
     ):
         super().__init__()
@@ -32,6 +34,7 @@ class TabbedPopupWindow(QMainWindow):
         self.profile = profile
         self.folder_view_handler = folder_view_handler
         self.special_local_handler = special_local_handler
+        self.file_view_handler = file_view_handler
         self.view_factory = view_factory
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
@@ -62,6 +65,7 @@ class TabbedPopupWindow(QMainWindow):
             self.profile,
             folder_view_handler=self.folder_view_handler,
             special_local_handler=self.special_local_handler,
+            file_view_handler=self.file_view_handler,
             new_tab_handler=self._new_tab_page,
         )
 
@@ -133,6 +137,7 @@ class UnifiedWebEnginePage(QWebEnginePage):
         parent=None,
         folder_view_handler=None,
         special_local_handler=None,
+        file_view_handler=None,
         new_tab_page_handler=None,
         new_window_page_handler=None,
     ):
@@ -140,6 +145,7 @@ class UnifiedWebEnginePage(QWebEnginePage):
         self.view_widget = parent
         self.folder_view_handler = folder_view_handler
         self.special_local_handler = special_local_handler
+        self.file_view_handler = file_view_handler
         self.new_tab_page_handler = new_tab_page_handler
         self.new_window_page_handler = new_window_page_handler
         self.popup_windows = []
@@ -160,6 +166,7 @@ class UnifiedWebEnginePage(QWebEnginePage):
             self.profile(),
             folder_view_handler=self.folder_view_handler,
             special_local_handler=self.special_local_handler,
+            file_view_handler=self.file_view_handler,
         )
         popup_window.show()
         self.popup_windows.append(popup_window)
@@ -178,6 +185,10 @@ class UnifiedWebEnginePage(QWebEnginePage):
                     handler = self.special_local_handler
                     QTimer.singleShot(0, lambda: handler(self.view_widget, local_path))
                     return False
+            if self.file_view_handler and local_path and is_text_file(local_path):
+                handler = self.file_view_handler
+                QTimer.singleShot(0, lambda: handler(self, local_path))
+                return False
         return super().acceptNavigationRequest(url, nav_type, is_main_frame)
 
 
@@ -189,6 +200,7 @@ class UnifiedWebTab(QWebEngineView):
         script_manager=None,
         folder_view_handler=None,
         special_local_handler=None,
+        file_view_handler=None,
         new_tab_handler=None,
         new_window_handler=None,
         url_changed_handler=None,
@@ -206,6 +218,7 @@ class UnifiedWebTab(QWebEngineView):
             self,
             folder_view_handler=folder_view_handler,
             special_local_handler=special_local_handler,
+            file_view_handler=file_view_handler,
             new_tab_page_handler=new_tab_handler,
             new_window_page_handler=None,
         )
