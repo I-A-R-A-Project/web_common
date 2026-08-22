@@ -6,7 +6,7 @@ from PyQt6.QtPdfWidgets import QPdfView
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 
-class PdfTab(QWidget):
+class EpubTab(QWidget):
     def __init__(self, path, main_window=None):
         super().__init__()
         self.main_window = main_window
@@ -49,4 +49,3 @@ class PdfTab(QWidget):
     def setZoomFactor(self, factor):
         self.view.setZoomMode(QPdfView.ZoomMode.Custom)
         self.view.setZoomFactor(factor)
-

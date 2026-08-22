@@ -2,10 +2,10 @@ import os
 import uuid
 from pathlib import Path
 
-from PyQt6.QtCore import QTimer, QUrl
+from PyQt6.QtCore import QTimer, QUrl, Qt
 from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QMainWindow, QMenu, QTabWidget, QVBoxLayout, QWidget
 
 from .navbar import BasicNavbar, address_to_url, save_web_page
 from .session import is_navigation_title
@@ -13,7 +13,56 @@ from .folder_viewer import is_text_file
 
 
 VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mkv", ".avi", ".mov")
-SPECIAL_LOCAL_EXTS = (".zip", ".rar", ".7z", ".epub", ".pdf") + VIDEO_EXTS
+SPECIAL_LOCAL_EXTS = (".zip", ".rar", ".7z", ".epub") + VIDEO_EXTS
+
+
+def install_tab_context_menu(
+    tabs: QTabWidget,
+    *,
+    close_tab,
+    plus_widget=None,
+    toggle_mute=None,
+) -> None:
+    """Install the common actions shown when right-clicking a tab."""
+    bar = tabs.tabBar()
+    bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+
+    def show_menu(pos):
+        index = bar.tabAt(pos)
+        if index < 0 or (plus_widget is not None and tabs.widget(index) is plus_widget):
+            return
+        last_real_index = (
+            tabs.indexOf(plus_widget) - 1
+            if plus_widget is not None
+            else tabs.count() - 1
+        )
+        menu = QMenu(tabs.window())
+        tab = tabs.widget(index)
+        if hasattr(tab, "page"):
+            page = tab.page()
+            action = menu.addAction(
+                "Activar sonido" if page.isAudioMuted() else "Enmudecer pestaña"
+            )
+            action.triggered.connect(
+                lambda: toggle_mute(index)
+                if toggle_mute is not None
+                else page.setAudioMuted(not page.isAudioMuted())
+            )
+            menu.addSeparator()
+
+        close_right = menu.addAction("Cerrar pestañas a la derecha")
+        close_right.setEnabled(index < last_real_index)
+        close_right.triggered.connect(
+            lambda: [close_tab(i) for i in range(last_real_index, index, -1)]
+        )
+        close_left = menu.addAction("Cerrar pestañas a la izquierda")
+        close_left.setEnabled(index > 0)
+        close_left.triggered.connect(
+            lambda: [close_tab(i) for i in range(index - 1, -1, -1)]
+        )
+        menu.exec(bar.mapToGlobal(pos))
+
+    bar.customContextMenuRequested.connect(show_menu)
 
 
 class TabbedPopupWindow(QMainWindow):

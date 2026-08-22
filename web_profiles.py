@@ -36,6 +36,7 @@ def build_web_profile(
         QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows: True,
         QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls: True,
         QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls: True,
+        QWebEngineSettings.WebAttribute.PluginsEnabled: True,
         QWebEngineSettings.WebAttribute.PdfViewerEnabled: True,
         QWebEngineSettings.WebAttribute.AutoLoadIconsForPage: True,
         QWebEngineSettings.WebAttribute.ErrorPageEnabled: True,
@@ -45,4 +46,3 @@ def build_web_profile(
     for attr, enabled in defaults.items():
         settings.setAttribute(attr, enabled)
     return profile
-
