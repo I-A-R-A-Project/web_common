@@ -19,6 +19,9 @@ necesita.
 - `sidebar.py` y `downloader_handoff.py`: paneles compartidos y entrega de
   descargas al Downloader.
 
+`downloader_handoff.py` también expone el handoff explícito de una URL actual.
+Las ventanas pueden conectarlo a su barra sin interceptar navegación normal.
+
 ## Menú de pestañas
 
 Usá `install_tab_context_menu()` desde la ventana que posee el

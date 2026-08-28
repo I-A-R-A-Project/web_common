@@ -4,8 +4,26 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import QBuffer, QIODevice
+from PyQt6.QtCore import QBuffer, QIODevice, QTimer
 from PyQt6.QtGui import QIcon, QPixmap
+
+
+class SessionAutoSaver:
+    """Programa un guardado de sesión después de cambios en las pestañas."""
+
+    def __init__(self, save_callback):
+        self._save_callback = save_callback
+        self._pending = False
+
+    def schedule(self):
+        if self._pending:
+            return
+        self._pending = True
+        QTimer.singleShot(0, self._save)
+
+    def _save(self):
+        self._pending = False
+        self._save_callback()
 
 
 def widget_url(widget):

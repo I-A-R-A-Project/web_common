@@ -3,6 +3,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 def downloader_script_from(start_path):
@@ -38,3 +39,30 @@ def entry_from_url(url, path="", title="", download_type=None):
         entry["download_type"] = download_type
     return entry
 
+
+def handoff_url_to_downloader(
+    url,
+    start_path,
+    *,
+    path="",
+    title="",
+    status_callback=None,
+):
+    """Send user-selected external URL to Downloader."""
+    url = (url or "").strip()
+    scheme = urlsplit(url).scheme.lower()
+    if not url or scheme not in {"http", "https", "ftp", "magnet"}:
+        message = "Seleccioná una URL web o magnet válida."
+        if status_callback:
+            status_callback(message, 5000)
+        return False
+    ok, error = launch_downloader(
+        [entry_from_url(url, path=path, title=title)],
+        start_path,
+    )
+    if status_callback:
+        status_callback(
+            "URL enviada al Downloader" if ok else error,
+            5000 if ok else 7000,
+        )
+    return ok
