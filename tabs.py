@@ -53,6 +53,37 @@ def keep_plus_tab_last(tabs: QTabWidget, plus_widget) -> None:
         tabs.tabBar().moveTab(plus_index, last_index)
 
 
+def update_tab_title(
+    tabs: QTabWidget,
+    tab,
+    title: str,
+    *,
+    title_limit: int = 30,
+    muted_prefix: str = "",
+) -> None:
+    """Actualiza el título visible y conserva los títulos de sesión."""
+    index = tabs.indexOf(tab)
+    if index < 0:
+        return
+    session_title = tab.property("_session_title")
+    if is_navigation_title(title) and session_title:
+        tabs.setTabText(index, session_title)
+        return
+    if not is_navigation_title(title):
+        tab.setProperty("_session_title", "")
+    visible_title = (title or "Nueva pestaña")[:title_limit]
+    if muted_prefix and hasattr(tab, "page") and tab.page().isAudioMuted():
+        visible_title = muted_prefix + visible_title
+    tabs.setTabText(index, visible_title)
+
+
+def update_tab_icon(tabs: QTabWidget, tab, icon) -> None:
+    """Actualiza el ícono de una pestaña si todavía pertenece al widget."""
+    index = tabs.indexOf(tab)
+    if index >= 0:
+        tabs.setTabIcon(index, icon)
+
+
 def install_tab_context_menu(
     tabs: QTabWidget,
     *,
