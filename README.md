@@ -15,7 +15,8 @@ necesita.
 - `session.py`: restauración, metadatos y persistencia de sesiones.
 - `local_viewer.py` y `folder_viewer.py`: archivos locales, carpetas,
   edición, Git y navegación dentro de archivos comprimidos.
-- `video_tab.py` y `media_tabs.py`: visor local y helpers para abrir medios.
+- `video_tab.py`, `epub_tab.py` y `media_tabs.py`: visores locales y helpers
+  para abrir medios.
 - `sidebar.py` y `downloader_handoff.py`: paneles compartidos y entrega de
   descargas al Downloader.
 

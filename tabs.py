@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt6.QtCore import QTimer, QUrl, Qt
 from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import QMainWindow, QMenu, QTabWidget, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QMainWindow, QMenu, QTabBar, QTabWidget, QVBoxLayout, QWidget
 
 from .navbar import BasicNavbar, address_to_url, save_web_page
 from .session import is_navigation_title
@@ -16,18 +16,36 @@ VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mkv", ".avi", ".mov")
 SPECIAL_LOCAL_EXTS = (".zip", ".rar", ".7z", ".epub") + VIDEO_EXTS
 
 
+class ContextTabBar(QTabBar):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._context_menu_handler = None
+
+    def set_context_menu_handler(self, handler):
+        self._context_menu_handler = handler
+
+    def mousePressEvent(self, event):
+        if (
+            event.button() == Qt.MouseButton.RightButton
+            and self._context_menu_handler is not None
+        ):
+            self._context_menu_handler(event.position().toPoint())
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+
 def install_tab_context_menu(
     tabs: QTabWidget,
     *,
     close_tab,
     plus_widget=None,
     toggle_mute=None,
+    direct_right_click=False,
 ) -> None:
     """Install the common actions shown when right-clicking a tab."""
-    bar = tabs.tabBar()
-    bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-
     def show_menu(pos):
+        bar = tabs.tabBar()
         index = bar.tabAt(pos)
         if index < 0 or (plus_widget is not None and tabs.widget(index) is plus_widget):
             return
@@ -62,7 +80,18 @@ def install_tab_context_menu(
         )
         menu.exec(bar.mapToGlobal(pos))
 
-    bar.customContextMenuRequested.connect(show_menu)
+    if direct_right_click:
+        bar = tabs.tabBar()
+        if not isinstance(bar, ContextTabBar):
+            new_bar = ContextTabBar(tabs)
+            tabs.setTabBar(new_bar)
+            bar = new_bar
+        bar.set_context_menu_handler(show_menu)
+        bar.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+    else:
+        bar = tabs.tabBar()
+        bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        bar.customContextMenuRequested.connect(show_menu)
 
 
 class TabbedPopupWindow(QMainWindow):

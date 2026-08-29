@@ -8,6 +8,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 
+from PyQt6.QtCore import QUrl
+
 
 DEFAULT_ARCHIVES_CACHE_DIR = Path.home() / ".iara" / "archives_cache"
 
@@ -266,11 +268,78 @@ def _archive_page(title, body):
 
 def extract_epub_root(path, cache_dir=None):
     dest = extract_zip(path, cache_dir)
+    documents = extract_epub_documents(path, cache_dir)
+    if documents:
+        return documents[0]
+    return dest
+
+
+def extract_epub_documents(path, cache_dir=None):
+    dest = extract_zip(path, cache_dir)
     opf_path = _find_opf(dest)
     if not opf_path:
-        return dest
-    first_doc = _first_spine_document(opf_path)
-    return first_doc if (first_doc and os.path.exists(first_doc)) else dest
+        return []
+    return [
+        document
+        for document in _spine_documents(opf_path)
+        if document and os.path.exists(document)
+    ]
+
+
+def open_local_target(tab, local_path, cache_dir=None, epub_handler=None):
+    """Abre un archivo local usando los visores y extractores compartidos.
+
+    ``epub_handler`` permite que cada navegador reemplace su pestaña por su
+    propio widget EPUB sin duplicar el procesamiento de archivos.
+    """
+    ext = os.path.splitext(local_path)[1].lower()
+    try:
+        if ext == ".zip":
+            tab.setUrl(QUrl.fromLocalFile(extract_zip(local_path, cache_dir)))
+            return True
+
+        if ext == ".7z":
+            dest = extract_7z(local_path, cache_dir)
+            if dest is None:
+                tab.page().setHtml(
+                    render_missing_dependency(local_path, "py7zr"),
+                    QUrl.fromLocalFile(local_path),
+                )
+            else:
+                tab.setUrl(QUrl.fromLocalFile(dest))
+            return True
+
+        if ext == ".rar":
+            dest = extract_rar(local_path, cache_dir)
+            if dest:
+                tab.setUrl(QUrl.fromLocalFile(dest))
+            else:
+                tab.page().setHtml(
+                    render_error(
+                        local_path,
+                        "No se pudo extraer. Instalá 7-Zip o WinRAR, "
+                        "o configurá 7z/unrar/unar en el PATH.",
+                    ),
+                    QUrl.fromLocalFile(local_path),
+                )
+            return True
+
+        if ext == ".epub":
+            if epub_handler is not None:
+                epub_handler(tab, local_path, cache_dir)
+            else:
+                document = extract_epub_root(local_path, cache_dir)
+                tab.setUrl(QUrl.fromLocalFile(document))
+            return True
+    except (OSError, ValueError, RuntimeError) as exc:
+        tab.page().setHtml(
+            render_error(local_path, f"Error al procesar el archivo: {exc}"),
+            QUrl.fromLocalFile(local_path),
+        )
+        return True
+
+    tab.setUrl(QUrl.fromLocalFile(local_path))
+    return False
 
 
 def _find_opf(root_dir):
@@ -288,6 +357,11 @@ def _find_opf(root_dir):
 
 
 def _first_spine_document(opf_path):
+    documents = _spine_documents(opf_path)
+    return documents[0] if documents else None
+
+
+def _spine_documents(opf_path):
     try:
         tree = ET.parse(opf_path)
         ns = {"opf": "http://www.idpf.org/2007/opf"}
@@ -298,11 +372,11 @@ def _first_spine_document(opf_path):
         spine = tree.find(".//opf:spine", ns)
         if spine is None:
             return None
+        documents = []
         for itemref in spine.findall("opf:itemref", ns):
             href = manifest.get(itemref.get("idref"))
             if href:
-                return os.path.normpath(os.path.join(os.path.dirname(opf_path), href))
+                documents.append(os.path.normpath(os.path.join(os.path.dirname(opf_path), href)))
+        return documents
     except ET.ParseError:
-        return None
-    return None
-
+        return []
