@@ -35,6 +35,24 @@ class ContextTabBar(QTabBar):
         super().mousePressEvent(event)
 
 
+def add_plus_tab(tabs: QTabWidget):
+    """Agrega una pestaña ``+`` sin botones laterales y devuelve el widget."""
+    plus_widget = QWidget()
+    index = tabs.addTab(plus_widget, "+")
+    bar = tabs.tabBar()
+    bar.setTabButton(index, bar.ButtonPosition.RightSide, None)
+    bar.setTabButton(index, bar.ButtonPosition.LeftSide, None)
+    return plus_widget
+
+
+def keep_plus_tab_last(tabs: QTabWidget, plus_widget) -> None:
+    """Mueve la pestaña ``+`` al final después de reordenar pestañas."""
+    plus_index = tabs.indexOf(plus_widget)
+    last_index = tabs.count() - 1
+    if plus_index >= 0 and plus_index != last_index:
+        tabs.tabBar().moveTab(plus_index, last_index)
+
+
 def install_tab_context_menu(
     tabs: QTabWidget,
     *,
