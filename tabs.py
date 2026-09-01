@@ -16,6 +16,15 @@ VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mkv", ".avi", ".mov")
 SPECIAL_LOCAL_EXTS = (".zip", ".rar", ".7z", ".epub") + VIDEO_EXTS
 
 
+def create_profiled_web_view(profile, parent=None, url=None):
+    """Crea una vista QWebEngine con una página ligada al perfil indicado."""
+    view = QWebEngineView(parent)
+    view.setPage(QWebEnginePage(profile, view))
+    if url is not None:
+        view.setUrl(url if isinstance(url, QUrl) else QUrl(url))
+    return view
+
+
 class ContextTabBar(QTabBar):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -132,6 +141,8 @@ def install_tab_context_menu(
     if direct_right_click:
         bar = tabs.tabBar()
         if not isinstance(bar, ContextTabBar):
+            if plus_widget is not None and tabs.indexOf(plus_widget) >= 0:
+                return
             new_bar = ContextTabBar(tabs)
             tabs.setTabBar(new_bar)
             bar = new_bar
@@ -141,6 +152,48 @@ def install_tab_context_menu(
         bar = tabs.tabBar()
         bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         bar.customContextMenuRequested.connect(show_menu)
+
+
+def configure_tab_widget(
+    tabs: QTabWidget,
+    *,
+    close_tab,
+    plus_widget,
+    current_changed=None,
+    tab_bar_clicked=None,
+    tab_moved=None,
+    toggle_mute=None,
+    direct_right_click=True,
+) -> None:
+    """Configura la pestaña compartida entre Browser e IA: barra de tabs,
+    clics, reordenado y menú contextual."""
+    bar = tabs.tabBar()
+    if not isinstance(bar, ContextTabBar):
+        tabs.setTabBar(ContextTabBar(tabs))
+        bar = tabs.tabBar()
+
+    tabs.setTabsClosable(True)
+    tabs.setMovable(True)
+    tabs.tabCloseRequested.connect(close_tab)
+    if current_changed is not None:
+        tabs.currentChanged.connect(current_changed)
+    if tab_bar_clicked is not None:
+        tabs.tabBarClicked.connect(tab_bar_clicked)
+    if tab_moved is not None:
+        tabs.tabBar().tabMoved.connect(tab_moved)
+    if plus_widget is not None:
+        index = tabs.indexOf(plus_widget)
+        if index >= 0:
+            bar.setTabButton(index, bar.ButtonPosition.RightSide, None)
+            bar.setTabButton(index, bar.ButtonPosition.LeftSide, None)
+        keep_plus_tab_last(tabs, plus_widget)
+    install_tab_context_menu(
+        tabs,
+        close_tab=close_tab,
+        plus_widget=plus_widget,
+        toggle_mute=toggle_mute,
+        direct_right_click=direct_right_click,
+    )
 
 
 class TabbedPopupWindow(QMainWindow):
@@ -350,7 +403,7 @@ class UnifiedWebTab(QWebEngineView):
             special_local_handler=special_local_handler,
             file_view_handler=file_view_handler,
             new_tab_page_handler=new_tab_handler,
-            new_window_page_handler=None,
+            new_window_page_handler=new_window_handler,
         )
         self.setPage(page)
 

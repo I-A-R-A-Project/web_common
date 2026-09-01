@@ -45,6 +45,29 @@ def address_to_url(text: str, *, search_url: str | None = None) -> QUrl | None:
     return QUrl(text)
 
 
+def bind_navigation(
+    navbar,
+    view_getter,
+    *,
+    address_handler=None,
+    save_handler=None,
+):
+    """Conecta una BasicNavbar a la vista activa de una ventana."""
+    navbar.on_back = lambda: _call_view(view_getter, "back")
+    navbar.on_forward = lambda: _call_view(view_getter, "forward")
+    navbar.on_reload = lambda: _call_view(view_getter, "reload")
+    navbar.on_stop = lambda: _call_view(view_getter, "stop")
+    navbar.on_address_bar_enter = address_handler
+    navbar.on_save_page = save_handler or (lambda: save_web_page(view_getter()))
+    return navbar
+
+
+def _call_view(view_getter, method):
+    view = view_getter()
+    if view is not None:
+        getattr(view, method)()
+
+
 def save_web_page(view, *, target_dir: str | Path | None = None, status_callback=None) -> None:
     """Guarda la vista actual como HTML en un archivo."""
     if view is None:
