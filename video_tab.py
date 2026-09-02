@@ -49,41 +49,137 @@ class VideoTab(QWidget):
         self.player.playbackStateChanged.connect(self._on_playback_state_changed)
 
         self.play_btn = QPushButton("▶")
-        self.play_btn.setFixedWidth(36)
+        self.play_btn.setObjectName("playButton")
+        self.play_btn.setFixedSize(38, 38)
+        self.play_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.play_btn.setToolTip("Reproducir / Pausar (espacio)")
         self.play_btn.clicked.connect(self._toggle_play)
 
         self.time_label = QLabel("0:00 / 0:00")
-        self.time_label.setStyleSheet("color:#bdc1c6; font-size:12px;")
+        self.time_label.setObjectName("timeLabel")
 
         self.seek_slider = QSlider(Qt.Orientation.Horizontal)
+        self.seek_slider.setObjectName("seekSlider")
+        self.seek_slider.setCursor(Qt.CursorShape.PointingHandCursor)
         self.seek_slider.setRange(0, 0)
         self.seek_slider.sliderPressed.connect(self._on_seek_start)
         self.seek_slider.sliderReleased.connect(self._on_seek_end)
         self.seek_slider.sliderMoved.connect(self._on_seek_move)
 
+        volume_icon = QLabel("🔊")
+        volume_icon.setObjectName("volumeIcon")
+
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.volume_slider.setObjectName("volumeSlider")
+        self.volume_slider.setCursor(Qt.CursorShape.PointingHandCursor)
         self.volume_slider.setFixedWidth(90)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(80)
         self.audio_output.setVolume(0.8)
         self.volume_slider.valueChanged.connect(lambda v: self.audio_output.setVolume(v / 100))
+        self.volume_slider.valueChanged.connect(self._update_volume_icon)
+
+        self.volume_icon = volume_icon
 
         controls = QHBoxLayout()
-        controls.setContentsMargins(8, 4, 8, 6)
+        controls.setContentsMargins(14, 8, 14, 10)
+        controls.setSpacing(10)
         controls.addWidget(self.play_btn)
         controls.addWidget(self.seek_slider, 1)
         controls.addWidget(self.time_label)
-        controls.addSpacing(10)
-        controls.addWidget(QLabel("Vol"))
+        controls.addSpacing(6)
+        controls.addWidget(volume_icon)
         controls.addWidget(self.volume_slider)
+
+        controls_bar = QWidget()
+        controls_bar.setObjectName("controlsBar")
+        controls_bar.setLayout(controls)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.video_widget, 1)
-        layout.addLayout(controls)
-        self.setStyleSheet("background-color:#202124;")
+        layout.addWidget(controls_bar)
+
+        self.setStyleSheet(
+            """
+            VideoTab {
+                background-color: #101114;
+            }
+
+            #controlsBar {
+                background-color: #1c1d21;
+                border-top: 1px solid #2c2d31;
+            }
+
+            #timeLabel {
+                color: #9aa0a6;
+                font-size: 12px;
+                font-variant-numeric: tabular-nums;
+                min-width: 90px;
+            }
+
+            #volumeIcon {
+                color: #9aa0a6;
+                font-size: 13px;
+            }
+
+            #playButton {
+                background-color: #2a2b30;
+                color: #f1f3f4;
+                border: none;
+                border-radius: 19px;
+                font-size: 14px;
+                padding-left: 2px;
+            }
+            #playButton:hover {
+                background-color: #3a3b42;
+            }
+            #playButton:pressed {
+                background-color: #4a90e2;
+            }
+
+            QSlider#seekSlider::groove:horizontal {
+                height: 4px;
+                background: #3a3b40;
+                border-radius: 2px;
+            }
+            QSlider#seekSlider::sub-page:horizontal {
+                background: #4a90e2;
+                border-radius: 2px;
+            }
+            QSlider#seekSlider::handle:horizontal {
+                background: #f1f3f4;
+                width: 13px;
+                height: 13px;
+                margin: -5px 0;
+                border-radius: 6px;
+            }
+            QSlider#seekSlider::handle:horizontal:hover {
+                background: #4a90e2;
+            }
+
+            QSlider#volumeSlider::groove:horizontal {
+                height: 3px;
+                background: #3a3b40;
+                border-radius: 1px;
+            }
+            QSlider#volumeSlider::sub-page:horizontal {
+                background: #9aa0a6;
+                border-radius: 1px;
+            }
+            QSlider#volumeSlider::handle:horizontal {
+                background: #f1f3f4;
+                width: 11px;
+                height: 11px;
+                margin: -4px 0;
+                border-radius: 5px;
+            }
+            QSlider#volumeSlider::handle:horizontal:hover {
+                background: #4a90e2;
+            }
+            """
+        )
 
         self.player.setSource(self._qurl)
         self.player.play()
@@ -123,7 +219,17 @@ class VideoTab(QWidget):
             self.player.play()
 
     def _on_playback_state_changed(self, state):
-        self.play_btn.setText("Pause" if state == QMediaPlayer.PlaybackState.PlayingState else "Play")
+        playing = state == QMediaPlayer.PlaybackState.PlayingState
+        self.play_btn.setText("⏸" if playing else "▶")
+
+    def _update_volume_icon(self, value):
+        if value == 0:
+            icon = "🔇"
+        elif value < 50:
+            icon = "🔉"
+        else:
+            icon = "🔊"
+        self.volume_icon.setText(icon)
 
     def _on_duration_changed(self, duration):
         self._duration = duration

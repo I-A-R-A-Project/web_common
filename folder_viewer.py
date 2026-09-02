@@ -9,9 +9,7 @@ from urllib.parse import parse_qs, quote, unquote
 
 from PyQt6.QtCore import QObject, QUrl, pyqtSlot
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtWidgets import (
-    QDialog, QDialogButtonBox, QLineEdit, QMessageBox, QTextEdit, QVBoxLayout,
-)
+from PyQt6.QtWidgets import QMessageBox
 from . import local_viewer
 
 MAX_TEXT_BYTES = 2 * 1024 * 1024
@@ -124,13 +122,17 @@ def _file_body(path, source, editing=False):
     )
     editor_hidden = "" if editing else " hidden"
     viewer_hidden = " hidden" if editing else ""
+    dir_text = html.escape(str(path.parent) + os.sep)
+    name_span = _entry_name_span(path)
     return (
-        f"<header>📄 {html.escape(str(path))} "
-        f"{_action_link('rename', path, '↔ Renombrar')}{actions}</header>"
+        f"<header><span class='entry name-only'><a class='entry-link' href='#' "
+        f"onclick='return entryClick(this,event)'>📄 <span class='path-dir'>{dir_text}</span>"
+        f"{name_span}</a></span>{actions}</header>"
         f"<div id='viewer'{viewer_hidden}><pre class='code'><code>{_code_html(source, path.suffix.lower())}</code></pre></div>"
-        f"<div id='editor' data-path='{html.escape(str(path))}'{editor_hidden}>"
+        f"<div id='editor' data-path='{html.escape(str(path))}'{editor_hidden}><div class='editor-scroll'>"
         f"<pre class='line-numbers' aria-hidden='true'>{''.join(str(i) + chr(10) for i in range(1, source.count(chr(10)) + 2))}</pre>"
-        f"<pre class='editable-code' contenteditable='true' spellcheck='false'><code>{_highlight(source, path.suffix.lower())}</code></pre></div>"
+        f"<pre class='editable-code' contenteditable='true' spellcheck='false' translate='no'>{html.escape(source)}</pre>"
+        f"</div></div>"
     )
 
 
@@ -169,6 +171,14 @@ def _action_link(action, path, label, **params):
     return f'<a class="button" href="browser-action://{action}?{query}">{label}</a>'
 
 
+def _entry_name_span(path):
+    p = Path(path).absolute()
+    return (
+        f'<span class="entry-name" data-path="{html.escape(str(p), quote=True)}">'
+        f'{html.escape(p.name)}</span>'
+    )
+
+
 def render_folder_html(folder_path, branch=None, selected_commit=None):
     folder = Path(folder_path).resolve()
     archive_root = folder
@@ -193,18 +203,24 @@ def render_folder_html(folder_path, branch=None, selected_commit=None):
         rows.append(f'<a class="entry dir" href="{html.escape(parent.as_uri() + "/")}">⬆ .. (subir un nivel)</a>')
     for entry in entries:
         url = html.escape(entry.as_uri() + ("/" if entry.is_dir() else ""))
+        name_span = _entry_name_span(entry)
         if entry.is_dir():
-            rows.append(f'<a class="entry dir" href="{url}">📁 {html.escape(entry.name)}</a>')
+            rows.append(
+                f'<span class="entry dir"><a class="entry-link" href="#" data-url="{url}" '
+                f'onclick="return entryClick(this,event)" ondblclick="return entryDblClick(this,event)">'
+                f'📁 {name_span}</a></span>'
+            )
         else:
             try:
                 size = entry.stat().st_size
                 size_text = f"{size / 1024:.1f} KB" if size < 1024 * 1024 else f"{size / 1024 / 1024:.1f} MB"
             except OSError:
                 size_text = ""
-            rows.append(f'<span class="entry file"><a href="{url}">📄 {html.escape(entry.name)}'
-                        f'<span class="size">{html.escape(size_text)}</span></a>'
-                        f'{_action_link("edit", entry, "✏") if is_text_file(entry) else ""}'
-                        f'{_action_link("rename", entry, "↔")}</span>')
+            rows.append(
+                f'<span class="entry file"><a class="entry-link" href="#" data-url="{url}" '
+                f'onclick="return entryClick(this,event)" ondblclick="return entryDblClick(this,event)">'
+                f'📄 {name_span}<span class="size">{html.escape(size_text)}</span></a></span>'
+            )
     root = _git_root(folder)
     git_html = ""
     if root is not None:
@@ -268,8 +284,62 @@ def render_file_view(page, file_path, editing=False):
 
 
 def _page(title, body, file_view=False):
-    extra = '.code { white-space: pre; } .code-line { display:block; } .ln { display:inline-block; width:4em; text-align:right; margin-right:1em; color:#666; user-select:none; pointer-events:none; } .code-text { white-space:pre-wrap; } button { margin-left:8px; padding:3px 7px; background:#383838; color:#eee; border:1px solid #555; border-radius:4px; } #editor { display:grid; grid-template-columns:5em minmax(0,1fr); min-height:80vh; outline:1px solid #555; } #editor .line-numbers { margin:0; padding:20px 8px; text-align:right; color:#666; user-select:none; pointer-events:none; } #editor .editable-code { margin:0; min-height:80vh; padding:20px; outline:0; background:#181818; color:#ddd; font:13px/1.5 "SF Mono",Consolas,monospace; white-space:pre-wrap; }' if file_view else ""
-    style = f"""<style>* {{ box-sizing:border-box; }} body {{ margin:0; background:#1e1e1e; color:#e6e6e6; font-family:-apple-system,"Segoe UI",Arial,sans-serif; }} header {{ padding:14px 20px; border-bottom:1px solid #3a3a3a; color:#aaa; word-break:break-all; }} main {{ display:flex; gap:20px; height:calc(100vh - 65px); padding:16px; }} section {{ flex:1; min-width:0; min-height:0; }} .folder-scroll,.git {{ overflow:auto; }} h2 {{ font-size:12px; text-transform:uppercase; color:#888; }} a {{ color:#e6e6e6; }} a.entry {{ display:flex; justify-content:space-between; padding:7px 10px; border-radius:6px; text-decoration:none; font-size:13.5px; }} a.entry:hover,.commit:hover {{ background:#2c2c2c; }} .entry.file {{ display:flex; align-items:center; padding:7px 10px; }} .entry.file>a:first-child {{ flex:1; text-decoration:none; }} .button {{ margin-left:8px; padding:3px 6px; background:#383838; border-radius:4px; text-decoration:none; }} .size,.muted {{ color:#888; font-size:12px; }} .size {{ margin-left:12px; }} .commit {{ padding:6px 10px; font:12px "SF Mono",Consolas,monospace; }} .code {{ margin:0; padding:20px; overflow:auto; font:13px/1.5 "SF Mono",Consolas,monospace; background:#181818; color:#ddd; }} .commit-detail {{ white-space:pre-wrap; background:#181818; padding:10px; }} .string {{ color:#ce9178; }} .comment {{ color:#6a9955; }} .keyword {{ color:#569cd6; }} .number {{ color:#b5cea8; }} .md-heading {{ color:#4ec9b0; font-weight:bold; }} {extra}</style>"""
+    extra = ('.code { white-space: pre; } .code-line { display:block; border-radius:4px; } '
+             '.code-line.foldable { cursor:pointer; } .code-line.foldable:hover { background:#1c1d21; } '
+             '.ln { display:inline-block; width:4em; text-align:right; margin-right:1em; color:#5a5e66; user-select:none; pointer-events:none; } '
+             '.code-text { white-space:pre-wrap; } '
+             'button { margin-left:6px; padding:4px 10px; background:#2a2b30; color:#f1f3f4; border:1px solid #3a3b42; '
+             'border-radius:6px; cursor:pointer; font-size:12px; } button:hover { background:#3a3b42; } '
+             '#editor:not([hidden]) .editor-scroll { display:grid; grid-template-columns:5em minmax(0,1fr); '
+             'height:80vh; overflow:auto; border-radius:8px; outline:1px solid #2c2d31; } '
+             '#editor .line-numbers { margin:0; padding:20px 8px; text-align:right; color:#5a5e66; user-select:none; '
+             'pointer-events:none; background:#101114; } '
+             '#editor .editable-code { margin:0; padding:20px; outline:0; background:#141518; color:#ddd; '
+             'font:13px/1.5 "SF Mono",Consolas,monospace; white-space:pre; tab-size:2; }') if file_view else ""
+    style = f"""<style>
+* {{ box-sizing:border-box; }}
+body {{ margin:0; background:#16171a; color:#e6e6e6; font-family:-apple-system,"Segoe UI",Arial,sans-serif; }}
+header {{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:14px 20px; background:#1c1d21;
+  border-bottom:1px solid #2c2d31; color:#9aa0a6; word-break:break-all; }}
+main {{ display:flex; gap:20px; height:calc(100vh - 65px); padding:16px; }}
+section {{ flex:1; min-width:0; min-height:0; }}
+.folder-scroll,.git {{ overflow:auto; }}
+h2 {{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#7b8087; margin:4px 0 10px; display:flex; align-items:center; gap:8px; }}
+a {{ color:#e6e6e6; }}
+.entry {{ display:flex; align-items:center; padding:6px 10px; border-radius:8px; font-size:13.5px;
+  text-decoration:none; transition:background-color .1s; }}
+a.entry {{ justify-content:space-between; }}
+.entry:hover, .commit:hover {{ background:#24252a; }}
+.entry.selected {{ background:#20262e; outline:1px solid #33404d; }}
+.entry.renaming {{ background:#20262e; outline:1px solid #4a90e2; }}
+.entry.name-only {{ padding:2px 4px; }}
+.entry.name-only:hover {{ background:none; }}
+.entry.name-only.selected, .entry.name-only.renaming {{ background:none; outline:none; }}
+.entry-link {{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; color:#e6e6e6;
+  text-decoration:none; overflow:hidden; cursor:pointer; }}
+.entry-name {{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:1px 3px; }}
+.entry-name[contenteditable="true"] {{ background:#101114; outline:1px solid #4a90e2; white-space:normal; overflow:visible; cursor:text; }}
+.path-dir {{ color:#6c7077; }}
+.action, .button {{ display:inline-flex; align-items:center; justify-content:center; padding:3px 7px;
+  background:#2a2b30; color:#c7cad0; border-radius:6px; text-decoration:none; font-size:12px; border:none; }}
+.action:hover, .button:hover {{ background:#3a3b42; color:#f1f3f4; }}
+.size,.muted {{ color:#7b8087; font-size:12px; }}
+.size {{ margin-left:8px; flex-shrink:0; }}
+.commit {{ padding:6px 10px; border-radius:6px; font:12px "SF Mono",Consolas,monospace; color:#c7cad0; }}
+.commit a {{ text-decoration:none; color:inherit; }}
+.code {{ margin:0; padding:20px; overflow:auto; font:13px/1.5 "SF Mono",Consolas,monospace; background:#141518; color:#ddd; }}
+.commit-detail {{ white-space:pre-wrap; background:#141518; padding:10px; border-radius:6px; margin-top:6px; }}
+.string {{ color:#ce9178; }}
+.comment {{ color:#6a9955; }}
+.keyword {{ color:#569cd6; }}
+.number {{ color:#b5cea8; }}
+.md-heading {{ color:#4ec9b0; font-weight:bold; }}
+::-webkit-scrollbar {{ width:10px; height:10px; }}
+::-webkit-scrollbar-track {{ background:transparent; }}
+::-webkit-scrollbar-thumb {{ background:#3a3b42; border-radius:5px; }}
+::-webkit-scrollbar-thumb:hover {{ background:#4a4b52; }}
+{extra}
+</style>"""
     script = """<script>
 document.addEventListener('DOMContentLoaded',function(){
  const lines=[...document.querySelectorAll('.code-line')];
@@ -349,8 +419,99 @@ function saveEditLink(link) {
     + '&content=' + encodeURIComponent(source);
   return true;
 }
+(function () {
+  const editor = document.getElementById('editor');
+  if (!editor) return;
+  const codeEl = editor.querySelector('.editable-code');
+  const numsEl = editor.querySelector('.line-numbers');
+  function syncLineNumbers() {
+    const lines = codeEl.innerText.split('\\n').length;
+    let out = '';
+    for (let i = 1; i <= lines; i++) out += i + '\\n';
+    numsEl.textContent = out;
+  }
+  codeEl.addEventListener('input', syncLineNumbers);
+  codeEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      document.execCommand('insertText', false, '  ');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      document.execCommand('insertText', false, '\\n');
+    }
+  });
+  codeEl.addEventListener('paste', function (e) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+  });
+})();
 </script>""" if file_view else ""
-    return f"<!doctype html><html><head><meta charset='utf-8'><title>{html.escape(title)}</title>{style}</head><body>{body}{script}{editor_script}</body></html>"
+    rename_script = """<script>
+function entryClick(link, evt) {
+  evt.preventDefault();
+  const row = link.closest('.entry');
+  if (!row || row.classList.contains('renaming')) return false;
+  if (row._renameTimer) { clearTimeout(row._renameTimer); row._renameTimer = null; }
+  if (row.classList.contains('selected')) {
+    row._renameTimer = setTimeout(function () {
+      row._renameTimer = null;
+      beginRename(row.querySelector('.entry-name'));
+    }, 280);
+  } else {
+    document.querySelectorAll('.entry.selected').forEach(function (r) { r.classList.remove('selected'); });
+    row.classList.add('selected');
+  }
+  return false;
+}
+function entryDblClick(link, evt) {
+  evt.preventDefault();
+  const row = link.closest('.entry');
+  if (row && row._renameTimer) { clearTimeout(row._renameTimer); row._renameTimer = null; }
+  const url = link.dataset.url;
+  if (url) location.href = url;
+  return false;
+}
+function beginRename(nameEl) {
+  if (!nameEl || nameEl.isContentEditable) return;
+  const row = nameEl.closest('.entry');
+  const original = nameEl.textContent;
+  row.classList.add('renaming');
+  nameEl.contentEditable = 'true';
+  nameEl.spellcheck = false;
+  nameEl.focus();
+  document.execCommand('selectAll', false, null);
+  function finish(commit) {
+    nameEl.removeEventListener('blur', onBlur);
+    nameEl.removeEventListener('keydown', onKey);
+    nameEl.contentEditable = 'false';
+    row.classList.remove('renaming');
+    row.classList.remove('selected');
+    const value = nameEl.textContent.trim();
+    if (commit && value && value !== original) {
+      const path = nameEl.dataset.path;
+      location.href = 'browser-action://rename?path=' + encodeURIComponent(path)
+        + '&name=' + encodeURIComponent(value);
+    } else {
+      nameEl.textContent = original;
+    }
+  }
+  function onBlur() { finish(true); }
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  }
+  nameEl.addEventListener('blur', onBlur);
+  nameEl.addEventListener('keydown', onKey);
+}
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.entry-link') && !e.target.closest('.entry-name[contenteditable="true"]')) {
+    document.querySelectorAll('.entry.selected').forEach(function (r) { r.classList.remove('selected'); });
+  }
+});
+</script>"""
+    return (f"<!doctype html><html><head><meta charset='utf-8'><title>{html.escape(title)}</title>{style}</head>"
+            f"<body>{body}{rename_script}{script}{editor_script}</body></html>")
 
 
 def handle_action(page, url):
@@ -372,26 +533,26 @@ def handle_action(page, url):
                 return True
         except OSError:
             return True
-    if action in {"rename", "edit"} and (not path.exists() or not path.is_file()):
-        QMessageBox.warning(page.view_widget, "Error", "El archivo ya no existe.")
+    if action in {"rename", "edit"} and not path.exists():
+        QMessageBox.warning(page.view_widget, "Error", "El elemento ya no existe.")
+        return True
+    if action == "edit" and not path.is_file():
         return True
     if action == "rename":
-        dialog = QDialog(page.view_widget)
-        dialog.setWindowTitle("Renombrar archivo")
-        layout = QVBoxLayout(dialog)
-        edit = QLineEdit(path.name)
-        layout.addWidget(edit)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(dialog.accept); buttons.rejected.connect(dialog.reject); layout.addWidget(buttons)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            name = edit.text().strip()
-            target = (path.parent / name).resolve()
-            if not name or Path(name).name != name or target.parent != path.parent.resolve() or target.exists():
-                QMessageBox.warning(page.view_widget, "Error", "Nombre inválido o destino existente.")
-            else:
-                try: path.rename(target)
-                except OSError as exc: QMessageBox.warning(page.view_widget, "Error", str(exc))
-                else: render_folder_view(page, path.parent)
+        name = unquote(query.get("name", [""])[0]).strip()
+        target = (path.parent / name).resolve()
+        if not name or Path(name).name != name or target.parent != path.parent.resolve() or target.exists():
+            QMessageBox.warning(page.view_widget, "Error", "Nombre inválido o destino existente.")
+            return True
+        try:
+            path.rename(target)
+        except OSError as exc:
+            QMessageBox.warning(page.view_widget, "Error", str(exc))
+            return True
+        if current_file is not None and path == current_file:
+            render_file_view(page, target)
+        else:
+            render_folder_view(page, path.parent)
         return True
     if action == "edit":
         render_file_view(page, path, editing=True)
