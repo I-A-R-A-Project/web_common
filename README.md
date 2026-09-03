@@ -15,16 +15,18 @@ necesita.
 - `web_profiles.py`: creación de perfiles aislados de Qt WebEngine.
 - `session.py`: restauración, metadatos y persistencia de sesiones.
 - `local_viewer.py` y `folder_viewer.py`: archivos locales, carpetas,
-  edición, Git y navegación dentro de archivos comprimidos.
+  edición, Git y navegación dentro de archivos comprimidos. `archive_entries()`
+  lista contenidos y `extract_archive()` extrae ZIP, TAR/GZIP/BZIP2 y, cuando
+  están instaladas sus dependencias opcionales, RAR/7z.
 - `video_tab.py`, `epub_tab.py` y `media_tabs.py`: visores locales y helpers
   para abrir medios.
 - `sidebar.py` y `downloader_handoff.py`: paneles compartidos y entrega de
   descargas al Downloader.
-- `zoom.py`: ajuste y restablecimiento del zoom de la vista activa, con
-  persistencia opcional provista por cada aplicación. `Browser` y `IA` usan
-  las mismas operaciones y atajos; solo cambia dónde persiste el factor.
-- `navigation.py`: pestaña activa, activación de la pestaña `+`, sincronización
+- `navigation.py`: ajuste y restablecimiento del zoom de la vista activa,
+  pestaña activa, activación de la pestaña `+`, sincronización
   de la barra de dirección y carga de URLs con callbacks específicos.
+- `assets/epub_reader.html`, `epub_reader.css` y `epub_reader.js`: plantilla
+  y comportamiento del lector EPUB, separados del código Python.
 - `tabs.py` también expone `close_tab()`, que centraliza el cierre seguro,
   selección de la pestaña anterior y recreación de una pestaña cuando solo
   queda `+`; cada aplicación inyecta su limpieza particular.

@@ -127,12 +127,42 @@ def _mark_extracted(dest_dir):
         f.write("ok")
 
 
+def _safe_member_path(destination, member_name):
+    root = Path(destination).resolve()
+    target = (root / member_name).resolve()
+    if target != root and root not in target.parents:
+        raise ValueError(f"Ruta insegura en el comprimido: {member_name}")
+    return target
+
+
+def _extract_zip_safe(archive, destination):
+    for info in archive.infolist():
+        target = _safe_member_path(destination, info.filename)
+        if info.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(info) as source, target.open("wb") as output:
+            shutil.copyfileobj(source, output)
+
+
+def _extract_tar_safe(archive, destination):
+    for info in archive.getmembers():
+        target = _safe_member_path(destination, info.name)
+        if info.isdir():
+            target.mkdir(parents=True, exist_ok=True)
+        elif info.isfile():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.extractfile(info) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+
+
 def extract_zip(path, cache_dir=None):
     dest = _dest_dir(path, cache_dir)
     if not _already_extracted(dest):
         os.makedirs(dest, exist_ok=True)
         with zipfile.ZipFile(path) as zf:
-            zf.extractall(dest)
+            _extract_zip_safe(zf, dest)
         _mark_extracted(dest)
     _remember_source(dest, path)
     return dest
@@ -215,6 +245,67 @@ def extract_rar(path, cache_dir=None):
             return None
     _remember_source(dest, path)
     return dest
+
+
+def archive_entries(path):
+    """Devuelve archivos de un comprimido usando librerías Python cuando existen."""
+    lower = Path(path).name.lower()
+    try:
+        if lower.endswith(".zip"):
+            with zipfile.ZipFile(path) as archive:
+                return [name for name in archive.namelist() if not name.endswith("/")]
+        if lower.endswith((".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar")):
+            import tarfile
+            with tarfile.open(path) as archive:
+                return [item.name for item in archive.getmembers() if item.isfile()]
+        if lower.endswith(".rar"):
+            import rarfile
+            with rarfile.RarFile(path) as archive:
+                return [name for name in archive.namelist() if not name.endswith("/")]
+        if lower.endswith(".7z"):
+            import py7zr
+            with py7zr.SevenZipFile(path, mode="r") as archive:
+                return list(archive.getnames())
+        if lower.endswith((".gz", ".bz2")):
+            return [Path(path).stem]
+    except (ImportError, OSError, ValueError, RuntimeError):
+        return None
+    return None
+
+
+def extract_archive(path, destination):
+    """Extrae un comprimido en ``destination`` sin depender de ejecutables externos."""
+    import bz2
+    import gzip
+    import tarfile
+
+    source = Path(path)
+    target = Path(destination)
+    target.mkdir(parents=True, exist_ok=True)
+    lower = source.name.lower()
+    if lower.endswith(".zip"):
+        with zipfile.ZipFile(source) as archive:
+            _extract_zip_safe(archive, target)
+    elif lower.endswith((".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar")):
+        with tarfile.open(source) as archive:
+            _extract_tar_safe(archive, target)
+    elif lower.endswith(".gz"):
+        with gzip.open(source, "rb") as source_file, (target / source.stem).open("wb") as target_file:
+            shutil.copyfileobj(source_file, target_file)
+    elif lower.endswith(".bz2"):
+        with bz2.open(source, "rb") as source_file, (target / source.stem).open("wb") as target_file:
+            shutil.copyfileobj(source_file, target_file)
+    elif lower.endswith(".rar"):
+        import rarfile
+        with rarfile.RarFile(source) as archive:
+            archive.extractall(target)
+    elif lower.endswith(".7z"):
+        import py7zr
+        with py7zr.SevenZipFile(source, mode="r") as archive:
+            archive.extractall(path=target)
+    else:
+        raise ValueError(f"Formato comprimido no soportado: {source.name}")
+    return target
 
 
 def render_rar_listing(path):
