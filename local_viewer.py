@@ -27,6 +27,22 @@ PAGE_STYLE = """
 """
 
 
+def handle_special_local_file(
+    tab,
+    local_path,
+    *,
+    video_extensions,
+    video_handler,
+    target_handler,
+):
+    """Dispatch a special local file while leaving app-specific UI callbacks injectable."""
+    path = str(local_path)
+    if Path(path).suffix.lower() in video_extensions:
+        video_handler(path)
+        return
+    target_handler(tab, path)
+
+
 def _page(title, body):
     return f"<!doctype html><html><head><meta charset='utf-8'><title>{title}</title>{PAGE_STYLE}</head><body>{body}</body></html>"
 

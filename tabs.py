@@ -54,6 +54,14 @@ def add_plus_tab(tabs: QTabWidget):
     return plus_widget
 
 
+def prepare_tab_widget(tabs: QTabWidget) -> None:
+    """Instala la barra y propiedades comunes antes de agregar pestañas."""
+    if not isinstance(tabs.tabBar(), ContextTabBar):
+        tabs.setTabBar(ContextTabBar(tabs))
+    tabs.setTabsClosable(True)
+    tabs.setMovable(True)
+
+
 def keep_plus_tab_last(tabs: QTabWidget, plus_widget) -> None:
     """Mueve la pestaña ``+`` al final después de reordenar pestañas."""
     plus_index = tabs.indexOf(plus_widget)
@@ -91,6 +99,31 @@ def update_tab_icon(tabs: QTabWidget, tab, icon) -> None:
     index = tabs.indexOf(tab)
     if index >= 0:
         tabs.setTabIcon(index, icon)
+
+
+def close_tab(
+    tabs,
+    index,
+    plus_widget,
+    *,
+    before_delete=None,
+    ensure_tab=None,
+):
+    """Cierra una pestaña real y conserva la pestaña especial ``+``."""
+    if index < 0 or tabs.widget(index) is plus_widget:
+        return False
+    was_current = index == tabs.currentIndex()
+    widget = tabs.widget(index)
+    if before_delete is not None:
+        before_delete(widget)
+    tabs.removeTab(index)
+    widget.deleteLater()
+    if tabs.count() <= 1:
+        if ensure_tab is not None:
+            ensure_tab()
+    elif was_current:
+        tabs.setCurrentIndex(max(0, index - 1))
+    return True
 
 
 def install_tab_context_menu(
@@ -161,26 +194,21 @@ def configure_tab_widget(
     plus_widget,
     current_changed=None,
     tab_bar_clicked=None,
-    tab_moved=None,
     toggle_mute=None,
     direct_right_click=True,
 ) -> None:
     """Configura la pestaña compartida entre Browser e IA: barra de tabs,
     clics, reordenado y menú contextual."""
+    prepare_tab_widget(tabs)
     bar = tabs.tabBar()
-    if not isinstance(bar, ContextTabBar):
-        tabs.setTabBar(ContextTabBar(tabs))
-        bar = tabs.tabBar()
-
-    tabs.setTabsClosable(True)
-    tabs.setMovable(True)
     tabs.tabCloseRequested.connect(close_tab)
     if current_changed is not None:
         tabs.currentChanged.connect(current_changed)
     if tab_bar_clicked is not None:
         tabs.tabBarClicked.connect(tab_bar_clicked)
-    if tab_moved is not None:
-        tabs.tabBar().tabMoved.connect(tab_moved)
+    tabs.tabBar().tabMoved.connect(
+        lambda _from_index, _to_index: keep_plus_tab_last(tabs, plus_widget)
+    )
     if plus_widget is not None:
         index = tabs.indexOf(plus_widget)
         if index >= 0:

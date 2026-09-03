@@ -8,7 +8,8 @@ necesita.
 ## Componentes principales
 
 - `tabs.py`: pestañas WebEngine, ventanas emergentes con pestañas y menú
-  contextual común (sonido y cierre de pestañas).
+  contextual común (sonido y cierre de pestañas), incluida la configuración
+  del ciclo de vida del `QTabWidget` mediante `configure_tab_widget()`.
 - `navbar.py`: barra de navegación, conversión de direcciones y guardado de
   páginas.
 - `web_profiles.py`: creación de perfiles aislados de Qt WebEngine.
@@ -19,9 +20,24 @@ necesita.
   para abrir medios.
 - `sidebar.py` y `downloader_handoff.py`: paneles compartidos y entrega de
   descargas al Downloader.
+- `zoom.py`: ajuste y restablecimiento del zoom de la vista activa, con
+  persistencia opcional provista por cada aplicación. `Browser` y `IA` usan
+  las mismas operaciones y atajos; solo cambia dónde persiste el factor.
+- `navigation.py`: pestaña activa, activación de la pestaña `+`, sincronización
+  de la barra de dirección y carga de URLs con callbacks específicos.
+- `tabs.py` también expone `close_tab()`, que centraliza el cierre seguro,
+  selección de la pestaña anterior y recreación de una pestaña cuando solo
+  queda `+`; cada aplicación inyecta su limpieza particular.
 
 `downloader_handoff.py` también expone el handoff explícito de una URL actual.
 Las ventanas pueden conectarlo a su barra sin interceptar navegación normal.
+
+`IA` y `Browser` deben mantener en sus ventanas únicamente los callbacks y
+metadatos propios de cada aplicación. La creación de pestañas, la barra `+`,
+el cierre seguro, el reordenado y los eventos comunes se conectan mediante
+`configure_tab_widget()`. Los gestores de perfiles, sesiones de negocio,
+descargas, colecciones, historial y páginas de inicio siguen siendo
+específicos de cada aplicación.
 
 ## Menú de pestañas
 
