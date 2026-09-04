@@ -73,3 +73,24 @@ def navigate_view(view_getter, text, *, search_url=None):
         return None
     view.setUrl(target)
     return target
+
+
+def new_tab_page(create_tab):
+    """Crea una pestaña mediante el callback de la aplicación y devuelve su página."""
+    return create_tab().page()
+
+
+def open_default_tab(create_tab):
+    """Abre una pestaña usando la política predeterminada de la aplicación."""
+    return create_tab()
+
+
+def handle_tab_changed(tabs, index, plus_widget, on_tab_changed):
+    """Obtiene la pestaña activa y delega su sincronización a la aplicación."""
+    if index < 0:
+        return None
+    tab = tabs.widget(index)
+    if tab is None or tab is plus_widget:
+        return None
+    on_tab_changed(tab)
+    return tab

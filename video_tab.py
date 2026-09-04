@@ -261,3 +261,13 @@ class VideoTab(QWidget):
             f"Error al reproducir video: {error_string}", 8000
         )
 
+
+def open_video_tab(tabs, path, main_window, title_limit=30, on_open=None):
+    """Crea y agrega una pestaña de video al widget de pestañas indicado."""
+    tab = VideoTab(path, main_window)
+    title = os.path.basename(path)
+    index = tabs.addTab(tab, title[:title_limit] or "Video")
+    tabs.setCurrentIndex(index)
+    if on_open is not None:
+        on_open(tab, title)
+    return tab

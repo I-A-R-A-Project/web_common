@@ -11,13 +11,9 @@ from PyQt6.QtCore import QObject, QUrl, pyqtSlot
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtWidgets import QMessageBox
 from . import local_viewer
+from .local_file_types import is_text_file
 
 MAX_TEXT_BYTES = 2 * 1024 * 1024
-TEXT_EXTENSIONS = {
-    ".c", ".cc", ".cpp", ".css", ".csv", ".go", ".h", ".hpp", ".ini", ".java",
-    ".js", ".json", ".jsx", ".md", ".py", ".rs", ".sh", ".sql", ".toml", ".ts",
-    ".tsx", ".txt", ".xml", ".yaml", ".yml",
-}
 _TOKEN_RE = re.compile(r'(?P<string>"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|`(?:\\.|[^`\\])*`)'
                        r'|(?P<comment>//[^\n]*|#[^\n]*|;[^\n]*)|(?P<number>\b\d+(?:\.\d+)?\b)'
                        r'|(?P<word>[A-Za-z_][A-Za-z0-9_]*)')
@@ -51,10 +47,6 @@ class _EditorBridge(QObject):
     @pyqtSlot()
     def cancel(self):
         render_file_view(self.page, self.path)
-
-
-def is_text_file(path):
-    return Path(path).suffix.lower() in TEXT_EXTENSIONS
 
 
 def _highlight(source, suffix):

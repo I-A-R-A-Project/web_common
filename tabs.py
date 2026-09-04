@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QMainWindow, QMenu, QTabBar, QTabWidget, QVBoxLayout
 
 from .navbar import BasicNavbar, address_to_url, save_web_page
 from .session import is_navigation_title
-from .folder_viewer import is_text_file
+from .local_file_types import is_text_file
 
 
 VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mkv", ".avi", ".mov")

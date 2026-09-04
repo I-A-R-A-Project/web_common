@@ -1,7 +1,7 @@
 # web_common
 
 `web_common` contiene los componentes compartidos por `Browser`, `IA` y
-`ArtBrowser`. Los proyectos siguen siendo aplicaciones independientes y
+`ArtVision`. Los proyectos siguen siendo aplicaciones independientes y
 mantienen sus puntos de entrada; cada uno importa aquí solo las piezas que
 necesita.
 
@@ -18,8 +18,8 @@ necesita.
   edición, Git y navegación dentro de archivos comprimidos. `archive_entries()`
   lista contenidos y `extract_archive()` extrae ZIP, TAR/GZIP/BZIP2 y, cuando
   están instaladas sus dependencias opcionales, RAR/7z.
-- `video_tab.py`, `epub_tab.py` y `media_tabs.py`: visores locales y helpers
-  para abrir medios.
+- `video_tab.py` y `epub_tab.py`: visores locales; `video_tab.py` también
+  expone `open_video_tab()` para crear y registrar una pestaña de video.
 - `sidebar.py` y `downloader_handoff.py`: paneles compartidos y entrega de
   descargas al Downloader.
 - `navigation.py`: ajuste y restablecimiento del zoom de la vista activa,
@@ -30,6 +30,9 @@ necesita.
 - `tabs.py` también expone `close_tab()`, que centraliza el cierre seguro,
   selección de la pestaña anterior y recreación de una pestaña cuando solo
   queda `+`; cada aplicación inyecta su limpieza particular.
+- `local_file_types.py`: clasificación de extensiones locales. Mantiene esta
+  decisión fuera de `folder_viewer.py` para que las pestañas WebEngine no
+  dependan del explorador/editor de carpetas.
 
 `downloader_handoff.py` también expone el handoff explícito de una URL actual.
 Las ventanas pueden conectarlo a su barra sin interceptar navegación normal.
@@ -51,3 +54,10 @@ construye las acciones comunes.
 Los cambios en esta carpeta pueden afectar simultáneamente a los tres
 navegadores. Conservá las importaciones relativas y la capacidad de ejecutar
 cada aplicación directamente desde su propio directorio.
+
+## Organización interna
+
+Los módulos se importan desde su responsabilidad concreta: `video_tab.py`
+contiene tanto `VideoTab` como `open_video_tab()`, y `local_file_types.py`
+contiene la clasificación de archivos de texto. `Browser` e `IA` usan esas
+ubicaciones directamente, sin módulos intermediarios de compatibilidad.
