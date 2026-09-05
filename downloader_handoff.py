@@ -1,9 +1,22 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
+
+
+def downloader_executable_from(start_path):
+    candidates = []
+    program_files = os.environ.get("ProgramFiles")
+    if program_files:
+        candidates.append(Path(program_files) / "IARA" / "Downloader.exe")
+    candidates.append(Path(sys.executable).resolve().parent / "Downloader.exe")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def downloader_script_from(start_path):
@@ -16,9 +29,16 @@ def downloader_script_from(start_path):
 
 
 def launch_downloader(entries, start_path):
-    script = downloader_script_from(start_path)
-    if script is None:
-        return False, "No se encontró Downloader/download_manager.py"
+    executable = downloader_executable_from(start_path)
+    if executable is not None:
+        command = [str(executable)]
+        working_dir = executable.parent
+    else:
+        script = downloader_script_from(start_path)
+        if script is None:
+            return False, "No se encontró Downloader instalado ni Downloader/download_manager.py"
+        command = [sys.executable, str(script)]
+        working_dir = script.parent
 
     with tempfile.NamedTemporaryFile(
         mode="w",
@@ -29,7 +49,7 @@ def launch_downloader(entries, start_path):
         json.dump(entries, handle, indent=2, ensure_ascii=False)
         json_path = handle.name
 
-    subprocess.Popen([sys.executable, str(script), json_path], cwd=str(script.parent))
+    subprocess.Popen([*command, json_path], cwd=str(working_dir))
     return True, ""
 
 

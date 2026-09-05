@@ -197,7 +197,7 @@ def configure_tab_widget(
     toggle_mute=None,
     direct_right_click=True,
 ) -> None:
-    """Configura la pestaña compartida entre Browser e IA: barra de tabs,
+    """Configura la pestaña compartida entre MiniBrowser y WebAgent: barra de tabs,
     clics, reordenado y menú contextual."""
     prepare_tab_widget(tabs)
     bar = tabs.tabBar()

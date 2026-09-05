@@ -1,6 +1,6 @@
 # web_common
 
-`web_common` contiene los componentes compartidos por `Browser`, `IA` y
+`web_common` contiene los componentes compartidos por `MiniBrowser`, `WebAgent` y
 `ArtVision`. Los proyectos siguen siendo aplicaciones independientes y
 mantienen sus puntos de entrada; cada uno importa aquí solo las piezas que
 necesita.
@@ -37,7 +37,7 @@ necesita.
 `downloader_handoff.py` también expone el handoff explícito de una URL actual.
 Las ventanas pueden conectarlo a su barra sin interceptar navegación normal.
 
-`IA` y `Browser` deben mantener en sus ventanas únicamente los callbacks y
+`WebAgent` y `MiniBrowser` deben mantener en sus ventanas únicamente los callbacks y
 metadatos propios de cada aplicación. La creación de pestañas, la barra `+`,
 el cierre seguro, el reordenado y los eventos comunes se conectan mediante
 `configure_tab_widget()`. Los gestores de perfiles, sesiones de negocio,
@@ -51,7 +51,7 @@ Usá `install_tab_context_menu()` desde la ventana que posee el
 mantener cualquier pestaña especial, como la pestaña `+`; el helper solo
 construye las acciones comunes.
 
-Los cambios en esta carpeta pueden afectar simultáneamente a los tres
+Los cambios en esta carpeta pueden afectar simultáneamente a los navegadores y
 navegadores. Conservá las importaciones relativas y la capacidad de ejecutar
 cada aplicación directamente desde su propio directorio.
 
@@ -59,5 +59,5 @@ cada aplicación directamente desde su propio directorio.
 
 Los módulos se importan desde su responsabilidad concreta: `video_tab.py`
 contiene tanto `VideoTab` como `open_video_tab()`, y `local_file_types.py`
-contiene la clasificación de archivos de texto. `Browser` e `IA` usan esas
+contiene la clasificación de archivos de texto. `MiniBrowser` y `WebAgent` usan esas
 ubicaciones directamente, sin módulos intermediarios de compatibilidad.
