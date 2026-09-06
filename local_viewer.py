@@ -13,18 +13,7 @@ from PyQt6.QtCore import QUrl
 
 DEFAULT_ARCHIVES_CACHE_DIR = Path.home() / ".iara" / "archives_cache"
 
-PAGE_STYLE = """
-<style>
-  body { background:#202124; color:#e8eaed; font-family: -apple-system, "Segoe UI", sans-serif;
-         padding: 28px; max-width: 900px; margin: 0 auto; }
-  h1 { font-size: 17px; font-weight: 600; word-break: break-all; }
-  table { width:100%; border-collapse: collapse; margin-top: 18px; }
-  th, td { text-align:left; padding: 7px 10px; border-bottom: 1px solid #3c4043; font-size: 13px; }
-  th { color:#9aa0a6; font-weight:500; }
-  .muted { color:#9aa0a6; font-size: 13px; }
-  code { background:#303134; padding:2px 6px; border-radius:4px; }
-</style>
-"""
+ASSETS_DIR = Path(__file__).with_name("assets")
 
 
 def handle_special_local_file(
@@ -44,7 +33,12 @@ def handle_special_local_file(
 
 
 def _page(title, body):
-    return f"<!doctype html><html><head><meta charset='utf-8'><title>{title}</title>{PAGE_STYLE}</head><body>{body}</body></html>"
+    template = (ASSETS_DIR / "local_viewer.html").read_text(encoding="utf-8")
+    return (
+        template.replace("__TITLE__", html.escape(title))
+        .replace("__CSS_URL__", QUrl.fromLocalFile(str(ASSETS_DIR / "local_viewer.css")).toString())
+        .replace("__BODY__", body)
+    )
 
 
 def format_size(num_bytes):
@@ -356,20 +350,12 @@ def render_rar_listing(path):
 
 
 def _archive_page(title, body):
+    template = (ASSETS_DIR / "archive_viewer.html").read_text(encoding="utf-8")
     return (
-        f"<!doctype html><html><head><meta charset='utf-8'><title>{html.escape(title)}</title>"
-        "<style>*{box-sizing:border-box}body{margin:0;background:#1e1e1e;color:#e6e6e6;"
-        "font-family:-apple-system,'Segoe UI',Arial,sans-serif}header{padding:14px 20px;"
-        "border-bottom:1px solid #3a3a3a;color:#aaa}main{padding:16px;height:calc(100vh - 60px);"
-        "overflow:auto}h2{font-size:12px;text-transform:uppercase;color:#888}.entry{display:flex;"
-        "justify-content:space-between;padding:7px 10px;border-radius:6px;font-size:13.5px}"
-        ".entry:hover{background:#2c2c2c}.entry.dir{font-weight:600}.size{color:#888;"
-        "font-size:12px;margin-left:12px}.entry.dir{cursor:pointer}</style>"
-        "<script>function toggleFolder(row){const folder=row.dataset.folder;"
-        "const open=row.dataset.open==='1';"
-        "document.querySelectorAll('.entry[data-parent]').forEach(function(item){"
-        "if(item.dataset.parent===folder)item.style.display=open?'none':'';});"
-        "row.dataset.open=open?'0':'1';}</script></head><body>" + body + "</body></html>"
+        template.replace("__TITLE__", html.escape(title))
+        .replace("__CSS_URL__", QUrl.fromLocalFile(str(ASSETS_DIR / "archive_viewer.css")).toString())
+        .replace("__JS_URL__", QUrl.fromLocalFile(str(ASSETS_DIR / "archive_viewer.js")).toString())
+        .replace("__BODY__", body)
     )
 
 

@@ -1,0 +1,19 @@
+*{box-sizing:border-box}body{margin:0;background:#16171a;color:#e6e6e6;font-family:-apple-system,"Segoe UI",Arial,sans-serif}
+header{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 20px;background:#1c1d21;border-bottom:1px solid #2c2d31;color:#9aa0a6;word-break:break-all;position:sticky;top:0;z-index:20}
+main{display:flex;gap:20px;height:calc(100vh - 65px);padding:16px}section{flex:1;min-width:0;min-height:0}.folder-scroll,.git{overflow:auto}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7b8087;margin:4px 0 10px;display:flex;align-items:center;gap:8px}
+a{color:#e6e6e6}.entry{display:flex;align-items:center;padding:6px 10px;border-radius:8px;font-size:13.5px;text-decoration:none;transition:background-color .1s}
+a.entry{justify-content:space-between}.entry:hover,.commit:hover{background:#24252a}.entry.selected{background:#20262e;outline:1px solid #33404d}.entry.renaming{background:#20262e;outline:1px solid #4a90e2}
+.entry.name-only{padding:2px 4px}.entry.name-only:hover{background:none}.entry.name-only.selected,.entry.name-only.renaming{background:none;outline:none}
+.entry-link{flex:1;min-width:0;display:flex;align-items:center;gap:8px;color:#e6e6e6;text-decoration:none;overflow:hidden;cursor:pointer}
+.entry-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;padding:1px 3px}.entry-name[contenteditable="true"]{background:#101114;outline:1px solid #4a90e2;white-space:normal;overflow:visible;cursor:text}.path-dir{color:#6c7077}
+.package-scripts{margin-bottom:18px}.script-buttons{display:flex;flex-wrap:wrap;gap:6px}.action,.button{display:inline-flex;align-items:center;justify-content:center;padding:3px 7px;background:#2a2b30;color:#c7cad0;border-radius:6px;text-decoration:none;font-size:12px;border:none}
+.action:hover,.button:hover{background:#3a3b42;color:#f1f3f4}.size,.muted{color:#7b8087;font-size:12px}.size{margin-left:8px;flex-shrink:0}.commit{padding:6px 10px;border-radius:6px;font:12px "SF Mono",Consolas,monospace;color:#c7cad0}.commit a{text-decoration:none;color:inherit}
+.code{margin:0;padding:20px;overflow:auto;font:13px/1.5 "SF Mono",Consolas,monospace;background:#141518;color:#ddd}.commit-detail{white-space:pre-wrap;background:#141518;padding:10px;border-radius:6px;margin-top:6px}
+.string{color:#ce9178}.comment{color:#6a9955}.keyword{color:#569cd6}.number{color:#b5cea8}.md-heading{color:#4ec9b0;font-weight:bold}.import-link{color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer}.import-link:hover{color:#4ec9b0}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#3a3b42;border-radius:5px}::-webkit-scrollbar-thumb:hover{background:#4a4b52}
+.code{white-space:pre}.code-line{display:block;border-radius:4px}.code-line.foldable{cursor:pointer}.code-line.foldable:hover{background:#1c1d21}.ln{display:inline-block;width:4em;text-align:right;margin-right:1em;color:#5a5e66;user-select:none;pointer-events:none}.code-text{white-space:pre-wrap}
+button{margin-left:6px;padding:4px 10px;background:#2a2b30;color:#f1f3f4;border:1px solid #3a3b42;border-radius:6px;cursor:pointer;font-size:12px}button:hover{background:#3a3b42}
+#editor:not([hidden]) .editor-scroll{display:grid;grid-template-columns:5em minmax(0,1fr);height:80vh;overflow:auto;border-radius:8px;outline:1px solid #2c2d31}
+#editor .line-numbers{margin:0;padding:20px 8px;text-align:right;color:#5a5e66;user-select:none;pointer-events:none;background:#101114}
+#editor .editable-code{margin:0;padding:20px;outline:0;background:#141518;color:#ddd;font:13px/1.5 "SF Mono",Consolas,monospace;white-space:pre;tab-size:2}

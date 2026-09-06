@@ -403,6 +403,13 @@ def render_file_view(page, file_path, editing=False):
 
 
 def _page(title, body, file_view=False):
+    template = (Path(__file__).with_name("assets") / "folder_viewer.html").read_text(encoding="utf-8")
+    return (
+        template.replace("__TITLE__", html.escape(title))
+        .replace("__CSS_URL__", QUrl.fromLocalFile(str(Path(__file__).with_name("assets") / "folder_viewer.css")).toString())
+        .replace("__JS_URL__", QUrl.fromLocalFile(str(Path(__file__).with_name("assets") / "folder_viewer.js")).toString())
+        .replace("__BODY__", body)
+    )
     extra = ('.code { white-space: pre; } .code-line { display:block; border-radius:4px; } '
              '.code-line.foldable { cursor:pointer; } .code-line.foldable:hover { background:#1c1d21; } '
              '.ln { display:inline-block; width:4em; text-align:right; margin-right:1em; color:#5a5e66; user-select:none; pointer-events:none; } '

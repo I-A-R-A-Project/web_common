@@ -27,6 +27,11 @@ necesita.
   de la barra de dirección y carga de URLs con callbacks específicos.
 - `assets/epub_reader.html`, `epub_reader.css` y `epub_reader.js`: plantilla
   y comportamiento del lector EPUB, separados del código Python.
+- `assets/local_viewer.html`, `local_viewer.css`, `archive_viewer.html`,
+  `archive_viewer.css` y `archive_viewer.js`: plantillas y recursos para
+  mensajes locales y listados de comprimidos.
+- `assets/folder_viewer.html`, `folder_viewer.css` y `folder_viewer.js`:
+  plantilla, estilos y comportamiento del explorador de carpetas y archivos.
 - `tabs.py` también expone `close_tab()`, que centraliza el cierre seguro,
   selección de la pestaña anterior y recreación de una pestaña cuando solo
   queda `+`; cada aplicación inyecta su limpieza particular.
