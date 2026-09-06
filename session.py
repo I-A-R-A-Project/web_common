@@ -36,7 +36,7 @@ def widget_url(widget):
     return "" if url == "about:blank" else url
 
 
-def _icon_data(icon):
+def icon_to_data(icon):
     if icon.isNull():
         return ""
     pixmap = icon.pixmap(32, 32)
@@ -49,7 +49,7 @@ def _icon_data(icon):
     return base64.b64encode(bytes(buffer.data())).decode("ascii")
 
 
-def _icon_from_data(value):
+def icon_from_data(value):
     if not isinstance(value, str) or not value:
         return QIcon()
     try:
@@ -60,6 +60,11 @@ def _icon_from_data(value):
     if not pixmap.loadFromData(data, "PNG"):
         return QIcon()
     return QIcon(pixmap)
+
+
+# Keep the original private names available to existing consumers.
+_icon_data = icon_to_data
+_icon_from_data = icon_from_data
 
 
 def collect_tabs(tab_widget, skip_widgets=(), metadata_for_widget=None):
@@ -76,7 +81,7 @@ def collect_tabs(tab_widget, skip_widgets=(), metadata_for_widget=None):
             "url": url,
             "title": tab_widget.tabText(index),
         }
-        favicon = _icon_data(tab_widget.tabIcon(index))
+        favicon = icon_to_data(tab_widget.tabIcon(index))
         if favicon:
             entry["favicon"] = favicon
         if metadata_for_widget:
@@ -91,7 +96,7 @@ def restore_tab_metadata(tab_widget, index, entry):
     if isinstance(title, str) and title:
         tab_widget.widget(index).setProperty("_session_title", title)
         tab_widget.setTabText(index, title)
-    tab_widget.setTabIcon(index, _icon_from_data(entry.get("favicon")))
+    tab_widget.setTabIcon(index, icon_from_data(entry.get("favicon")))
 
 
 def is_navigation_title(title):

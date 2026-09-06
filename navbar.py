@@ -50,15 +50,18 @@ def bind_navigation(
     view_getter,
     *,
     address_handler=None,
+    reload_handler=None,
     save_handler=None,
+    history_handler=None,
 ):
     """Conecta una BasicNavbar a la vista activa de una ventana."""
     navbar.on_back = lambda: _call_view(view_getter, "back")
     navbar.on_forward = lambda: _call_view(view_getter, "forward")
-    navbar.on_reload = lambda: _call_view(view_getter, "reload")
+    navbar.on_reload = reload_handler or (lambda: _call_view(view_getter, "reload"))
     navbar.on_stop = lambda: _call_view(view_getter, "stop")
     navbar.on_address_bar_enter = address_handler
     navbar.on_save_page = save_handler or (lambda: save_web_page(view_getter()))
+    navbar.on_history = history_handler
     return navbar
 
 
@@ -107,7 +110,7 @@ def save_web_page(view, *, target_dir: str | Path | None = None, status_callback
 
 
 class BasicNavbar(QToolBar):
-    """Barra de navegación básica con botones estándar: ← → ⟳ ■ 💾 y URL."""
+    """Barra de navegación básica compartida por los navegadores."""
 
     def __init__(self, parent=None):
         super().__init__("Navegación", parent)
@@ -119,6 +122,7 @@ class BasicNavbar(QToolBar):
         self.on_reload = None
         self.on_stop = None
         self.on_save_page = None
+        self.on_history = None
         self.on_address_bar_enter = None
 
         # Botón Atrás
@@ -157,6 +161,12 @@ class BasicNavbar(QToolBar):
         self.save_page_action.triggered.connect(self._on_save_page_clicked)
         self.addAction(self.save_page_action)
 
+        # Historial compartido: cada aplicación conecta su propio almacén.
+        self.history_action = QAction("🕖", self)
+        self.history_action.setToolTip("Historial")
+        self.history_action.triggered.connect(self._on_history_clicked)
+        self.addAction(self.history_action)
+
     def _on_back_clicked(self):
         if self.on_back:
             self.on_back()
@@ -176,6 +186,10 @@ class BasicNavbar(QToolBar):
     def _on_save_page_clicked(self):
         if self.on_save_page:
             self.on_save_page()
+
+    def _on_history_clicked(self):
+        if self.on_history:
+            self.on_history()
 
     def _on_address_bar_enter(self):
         if self.on_address_bar_enter:

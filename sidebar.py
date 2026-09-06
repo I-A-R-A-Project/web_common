@@ -7,6 +7,8 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QHBoxLayout, QStackedWidget, QToolButton, QVBoxLayout, QWidget
 from PyQt6.QtCore import QUrl
 
+from .session import icon_from_data, icon_to_data
+
 
 class SidebarRail(QWidget):
     WIDTH = 52
@@ -14,6 +16,9 @@ class SidebarRail(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.buttons = {}
+        self._apps = []
+        self._favicon_icons = {}
+        self.on_favicon_changed = None
         self.on_toggle = None
         self.setFixedWidth(self.WIDTH)
         self.setStyleSheet("""
@@ -31,9 +36,23 @@ class SidebarRail(QWidget):
         path = app.get("icon_path")
         if path and os.path.exists(path):
             return QIcon(path)
+        favicon = self._favicon_icons.get(app.get("id"))
+        if favicon is not None and not favicon.isNull():
+            return favicon
+        favicon = icon_from_data(app.get("favicon"))
+        if not favicon.isNull():
+            self._favicon_icons[app.get("id")] = favicon
+            return favicon
         return None
 
     def rebuild(self, apps, active_app_id=None):
+        self._apps = list(apps)
+        app_ids = {app["id"] for app in apps}
+        self._favicon_icons = {
+            app_id: icon
+            for app_id, icon in self._favicon_icons.items()
+            if app_id in app_ids
+        }
         for btn in self.buttons.values():
             btn.deleteLater()
         self.buttons.clear()
@@ -60,6 +79,27 @@ class SidebarRail(QWidget):
             if app["id"] == active_app_id:
                 btn.setChecked(True)
 
+    def set_favicon(self, app_id, icon):
+        if icon is None or icon.isNull():
+            return
+        app = next(
+            (item for item in self._apps if item.get("id") == app_id),
+            None,
+        )
+        if app is None or app.get("icon_path"):
+            return
+        self._favicon_icons[app_id] = icon
+        favicon = icon_to_data(icon)
+        if favicon:
+            app["favicon"] = favicon
+            if self.on_favicon_changed:
+                self.on_favicon_changed(app_id, favicon)
+        button = self.buttons.get(app_id)
+        if button is not None:
+            button.setIcon(icon)
+            button.setIconSize(QSize(28, 28))
+            button.setText("")
+
     def _emit_toggle(self, app):
         if self.on_toggle:
             self.on_toggle(app)
@@ -82,6 +122,7 @@ class AppPanelOverlay(QWidget):
         self.views = {}
         self.active_app_id = None
         self.on_new_window_request = None
+        self.on_app_icon_changed = None
         self.setAutoFillBackground(True)
         self.setStyleSheet("AppPanelOverlay { background-color: #202124; }")
 
@@ -101,6 +142,9 @@ class AppPanelOverlay(QWidget):
             page = QWebEnginePage(self.profile, view)
             view.setPage(page)
             page.newWindowRequested.connect(self._on_new_window_requested)
+            view.iconChanged.connect(
+                lambda icon, app_id=app_id: self._on_app_icon_changed(app_id, icon)
+            )
             view.setUrl(QUrl(app["url"]))
             self.views[app_id] = view
             self.stack.addWidget(view)
@@ -118,8 +162,13 @@ class AppPanelOverlay(QWidget):
         return self.active_app_id == app_id
 
     def _on_new_window_requested(self, request):
+        requested_host = request.requestedUrl().host().lower()
         if self.on_new_window_request:
             self.on_new_window_request(request)
+
+    def _on_app_icon_changed(self, app_id, icon):
+        if self.on_app_icon_changed:
+            self.on_app_icon_changed(app_id, icon)
 
     def _animate_to(self, target_w):
         geometry = self.geometry()
@@ -166,4 +215,3 @@ class SidebarContainer(QWidget):
         super().resizeEvent(event)
         self.app_panel.move(self.rail.width(), 0)
         self.app_panel.set_height(self.height())
-

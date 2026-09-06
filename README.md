@@ -12,7 +12,10 @@ necesita.
   del ciclo de vida del `QTabWidget` mediante `configure_tab_widget()`.
 - `navbar.py`: barra de navegación, conversión de direcciones y guardado de
   páginas.
-- `web_profiles.py`: creación de perfiles aislados de Qt WebEngine.
+- `web_profiles.py`: creación de perfiles aislados de Qt WebEngine. Usa un
+  User-Agent compatible con WhatsApp tanto en JavaScript como en las cabeceras
+  de red, y aplica el reemplazo por host mediante un interceptor;
+  `build_web_profile(..., site_user_agents=...)` permite reemplazar ese mapa.
 - `session.py`: restauración, metadatos y persistencia de sesiones.
 - `local_viewer.py` y `folder_viewer.py`: archivos locales, carpetas,
   edición, Git y navegación dentro de archivos comprimidos. `archive_entries()`
@@ -20,8 +23,13 @@ necesita.
   están instaladas sus dependencias opcionales, RAR/7z.
 - `video_tab.py` y `epub_tab.py`: visores locales; `video_tab.py` también
   expone `open_video_tab()` para crear y registrar una pestaña de video.
+- `history.py`: persistencia SQLite y diálogo del historial agrupado por
+  sesión de navegación.
 - `sidebar.py` y `downloader_handoff.py`: paneles compartidos y entrega de
   descargas al Downloader.
+- `sidebar.py` conserva los favicon de las aplicaciones en el campo `favicon`
+  de cada entrada. Conectá `SidebarRail.on_favicon_changed` a
+  `JsonListStore.update_item` para guardar el valor en disco.
 - `navigation.py`: ajuste y restablecimiento del zoom de la vista activa,
   pestaña activa, activación de la pestaña `+`, sincronización
   de la barra de dirección y carga de URLs con callbacks específicos.
@@ -43,11 +51,12 @@ necesita.
 Las ventanas pueden conectarlo a su barra sin interceptar navegación normal.
 
 `WebAgent` y `MiniBrowser` deben mantener en sus ventanas únicamente los callbacks y
-metadatos propios de cada aplicación. La creación de pestañas, la barra `+`,
+metadatos propios de cada aplicación. El historial compartido se instancia con
+`HistoryStore` y se muestra con `HistoryDialog`. La creación de pestañas, la barra `+`,
 el cierre seguro, el reordenado y los eventos comunes se conectan mediante
 `configure_tab_widget()`. Los gestores de perfiles, sesiones de negocio,
-descargas, colecciones, historial y páginas de inicio siguen siendo
-específicos de cada aplicación.
+descargas, colecciones y páginas de inicio siguen siendo específicos de cada
+aplicación.
 
 ## Menú de pestañas
 
