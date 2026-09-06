@@ -1,6 +1,7 @@
 """Safe, dependency-free HTML views for local folders and text files."""
 
 import html
+import json
 import os
 import re
 import subprocess
@@ -49,13 +50,70 @@ class _EditorBridge(QObject):
         render_file_view(self.page, self.path)
 
 
-def _highlight(source, suffix):
+def _resolve_import_path(path, spec):
+    """Resuelve imports locales sin salir del árbol del archivo actual."""
+    spec = spec.strip().replace("\\", "/")
+    if not spec:
+        return None
+    base = path.parent
+    candidates = []
+    if spec.startswith("/"):
+        candidates.append(Path(spec))
+    else:
+        relative = spec
+        if relative.startswith("."):
+            while relative.startswith("../"):
+                base = base.parent
+                relative = relative[3:]
+            relative = relative.lstrip("./")
+        elif "/" not in relative and "." in relative:
+            relative = relative.replace(".", "/")
+        candidates.append(base / relative)
+    for candidate in candidates:
+        candidate = candidate.resolve()
+        if candidate.is_file():
+            return candidate
+        if not candidate.suffix:
+            for suffix in (".py", ".js", ".jsx", ".ts", ".tsx", ".json", ".c", ".h", ".cpp", ".hpp"):
+                with_suffix = candidate.with_suffix(suffix)
+                if with_suffix.is_file():
+                    return with_suffix
+            for index_name in ("__init__.py", "index.js", "index.ts", "index.tsx"):
+                index_file = candidate / index_name
+                if index_file.is_file():
+                    return index_file
+    return None
+
+
+def _import_match(line, path):
+    patterns = (
+        r"\b(?:from|import)\s+['\"]([^'\"]+)['\"]",
+        r"\b(?:from|import)\s+([A-Za-z0-9_./-]+)",
+        r"^\s*#\s*include\s*[<\"]([^>\"]+)[>\"]",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, line)
+        if match and _resolve_import_path(path, match.group(1)):
+            return match.start(1), match.end(1), match.group(1)
+    return None
+
+
+def _highlight(source, suffix, import_link=None):
     if suffix == ".md":
         return "\n".join(
             '<span class="md-heading">' + html.escape(line) + "</span>"
             if re.match(r"^#{1,6}\s+", line) else html.escape(line)
             for line in source.splitlines()
         )
+    source_for_highlight = source
+    import_placeholder = None
+    import_target = None
+    if import_link:
+        start, end, spec, source_path = import_link
+        import_target = _resolve_import_path(Path(source_path), spec)
+        if import_target:
+            import_placeholder = "__IARA_IMPORT_TARGET__"
+            source_for_highlight = source[:start] + import_placeholder + source[end:]
     # Tokenize triple-quoted Python strings and block comments before the
     # single-line tokenizer so newlines remain inside one highlighted token.
     token_re = re.compile(
@@ -63,19 +121,34 @@ def _highlight(source, suffix):
         r'|' + _TOKEN_RE.pattern
     )
     output, last = [], 0
-    for match in token_re.finditer(source):
-        output.append(html.escape(source[last:match.start()]))
+    for match in token_re.finditer(source_for_highlight):
+        output.append(html.escape(source_for_highlight[last:match.start()]))
         kind, value = match.lastgroup, html.escape(match.group(0))
         cls = "string" if kind == "multiline" else (
             "keyword" if kind == "word" and match.group(0) in _KEYWORDS else kind
         )
         output.append(f'<span class="{cls}">{value}</span>')
         last = match.end()
-    output.append(html.escape(source[last:]))
-    return "".join(output)
+    output.append(html.escape(source_for_highlight[last:]))
+    highlighted = "".join(output)
+    if import_link and import_target:
+        start, end, spec, source_path = import_link
+        action = (
+            "browser-action://open-import?path="
+            f"{quote(str(Path(source_path).resolve()))}&target={quote(spec)}"
+        )
+        link = (
+            f'<a class="import-link" href="#" onclick="return false" '
+            f'ondblclick="return openImport(this)" data-action="{html.escape(action, quote=True)}">'
+            f"{html.escape(spec)}</a>"
+        )
+        placeholder = html.escape(import_placeholder)
+        if placeholder in highlighted:
+            highlighted = highlighted.replace(placeholder, link, 1)
+    return highlighted
 
 
-def _code_html(source, suffix):
+def _code_html(source, suffix, path):
     lines = []
     multiline = False
     for raw_line in source.split("\n"):
@@ -83,7 +156,9 @@ def _code_html(source, suffix):
         if multiline or markers:
             lines.append(f'<span class="string">{html.escape(raw_line) or " "}</span>')
         else:
-            lines.append(_highlight(raw_line, suffix))
+            import_match = _import_match(raw_line, path)
+            link_data = (*import_match, str(path)) if import_match else None
+            lines.append(_highlight(raw_line, suffix, link_data))
         if markers % 2:
             multiline = not multiline
     return "".join(
@@ -120,7 +195,7 @@ def _file_body(path, source, editing=False):
         f"<header><span class='entry name-only'><a class='entry-link' href='#' "
         f"onclick='return entryClick(this,event)'>📄 <span class='path-dir'>{dir_text}</span>"
         f"{name_span}</a></span>{actions}</header>"
-        f"<div id='viewer'{viewer_hidden}><pre class='code'><code>{_code_html(source, path.suffix.lower())}</code></pre></div>"
+        f"<div id='viewer'{viewer_hidden}><pre class='code'><code>{_code_html(source, path.suffix.lower(), path)}</code></pre></div>"
         f"<div id='editor' data-path='{html.escape(str(path))}'{editor_hidden}><div class='editor-scroll'>"
         f"<pre class='line-numbers' aria-hidden='true'>{''.join(str(i) + chr(10) for i in range(1, source.count(chr(10)) + 2))}</pre>"
         f"<pre class='editable-code' contenteditable='true' spellcheck='false' translate='no'>{html.escape(source)}</pre>"
@@ -171,7 +246,27 @@ def _entry_name_span(path):
     )
 
 
-def render_folder_html(folder_path, branch=None, selected_commit=None):
+def _package_scripts(folder):
+    """Devuelve los scripts declarados por package.json en la carpeta."""
+    package_path = Path(folder) / "package.json"
+    try:
+        package = json.loads(package_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    scripts = package.get("scripts")
+    if not isinstance(scripts, dict):
+        return {}
+    return {
+        str(name): command.strip()
+        for name, command in scripts.items()
+        if isinstance(name, str) and isinstance(command, str) and command.strip()
+    }
+
+
+def render_folder_html(
+    folder_path, branch=None, selected_commit=None, show_git_history=False,
+    command_handler=None,
+):
     folder = Path(folder_path).resolve()
     archive_root = folder
     archive_source = None
@@ -215,7 +310,14 @@ def render_folder_html(folder_path, branch=None, selected_commit=None):
             )
     root = _git_root(folder)
     git_html = ""
+    git_toggle = ""
     if root is not None:
+        git_toggle = _action_link(
+            "toggle-git",
+            folder,
+            "Ocultar historial Git" if show_git_history else "Mostrar historial Git",
+        )
+    if root is not None and show_git_history:
         branches = _git_branches(root)
         branch = branch if branch in branches else (branches[0] if branches else "HEAD")
         options = "".join(f'<option {"selected" if b == branch else ""}>{html.escape(b)}</option>' for b in branches)
@@ -239,9 +341,20 @@ def render_folder_html(folder_path, branch=None, selected_commit=None):
     else:
         heading = f"📁 {html.escape(str(folder))}"
         page_title = folder.name or str(folder)
+    package_scripts = _package_scripts(folder)
+    scripts_html = ""
+    if package_scripts and command_handler is not None:
+        script_buttons = "".join(
+            _action_link("run-script", folder, f"▶ {name}", script=name)
+            for name in sorted(package_scripts, key=str.casefold)
+        )
+        scripts_html = (
+            "<section class='package-scripts'><h2>Scripts de package.json</h2>"
+            f"<div class='script-buttons'>{script_buttons}</div></section>"
+        )
     body = (
-        f"<header>{heading}</header><main>"
-        f"<section class='folder-scroll'><h2>Contenido</h2>"
+        f"<header>{heading}{git_toggle}</header><main>"
+        f"<section class='folder-scroll'>{scripts_html}<h2>Contenido</h2>"
         f"{''.join(rows) or '<p class=\"muted\">Carpeta vacía</p>'}</section>"
         f"{git_html}</main>"
     )
@@ -253,9 +366,23 @@ def _git_commit_detail(root, commit):
     return f"<pre class='commit-detail'>{html.escape(result.stdout if result else 'No se pudo leer el commit.')}</pre>"
 
 
-def render_folder_view(page, folder_path):
+def render_folder_view(page, folder_path, show_git_history=None, command_handler=None):
+    if show_git_history is None:
+        show_git_history = page.property("_show_git_history")
+        if not isinstance(show_git_history, bool):
+            show_git_history = False
     page.setProperty("_folder_path", str(Path(folder_path).resolve()))
-    page.setHtml(render_folder_html(folder_path), QUrl.fromLocalFile(str(Path(folder_path)) + os.sep))
+    page.setProperty("_show_git_history", show_git_history)
+    if command_handler is not None:
+        page._folder_command_handler = command_handler
+    page.setHtml(
+        render_folder_html(
+            folder_path,
+            show_git_history=show_git_history,
+            command_handler=getattr(page, "_folder_command_handler", None),
+        ),
+        QUrl.fromLocalFile(str(Path(folder_path)) + os.sep),
+    )
 
 
 def render_file_view(page, file_path, editing=False):
@@ -292,7 +419,7 @@ def _page(title, body, file_view=False):
 * {{ box-sizing:border-box; }}
 body {{ margin:0; background:#16171a; color:#e6e6e6; font-family:-apple-system,"Segoe UI",Arial,sans-serif; }}
 header {{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:14px 20px; background:#1c1d21;
-  border-bottom:1px solid #2c2d31; color:#9aa0a6; word-break:break-all; }}
+  border-bottom:1px solid #2c2d31; color:#9aa0a6; word-break:break-all; position:sticky; top:0; z-index:20; }}
 main {{ display:flex; gap:20px; height:calc(100vh - 65px); padding:16px; }}
 section {{ flex:1; min-width:0; min-height:0; }}
 .folder-scroll,.git {{ overflow:auto; }}
@@ -312,6 +439,8 @@ a.entry {{ justify-content:space-between; }}
 .entry-name {{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:1px 3px; }}
 .entry-name[contenteditable="true"] {{ background:#101114; outline:1px solid #4a90e2; white-space:normal; overflow:visible; cursor:text; }}
 .path-dir {{ color:#6c7077; }}
+.package-scripts {{ margin-bottom:18px; }}
+.script-buttons {{ display:flex; flex-wrap:wrap; gap:6px; }}
 .action, .button {{ display:inline-flex; align-items:center; justify-content:center; padding:3px 7px;
   background:#2a2b30; color:#c7cad0; border-radius:6px; text-decoration:none; font-size:12px; border:none; }}
 .action:hover, .button:hover {{ background:#3a3b42; color:#f1f3f4; }}
@@ -326,6 +455,8 @@ a.entry {{ justify-content:space-between; }}
 .keyword {{ color:#569cd6; }}
 .number {{ color:#b5cea8; }}
 .md-heading {{ color:#4ec9b0; font-weight:bold; }}
+.import-link {{ color:inherit; text-decoration:underline; text-decoration-style:dotted; cursor:pointer; }}
+.import-link:hover {{ color:#4ec9b0; }}
 ::-webkit-scrollbar {{ width:10px; height:10px; }}
 ::-webkit-scrollbar-track {{ background:transparent; }}
 ::-webkit-scrollbar-thumb {{ background:#3a3b42; border-radius:5px; }}
@@ -374,6 +505,10 @@ document.addEventListener('DOMContentLoaded',function(){
   }
  });
 });
+function openImport(link) {
+  location.href = link.dataset.action;
+  return false;
+}
 </script>""" if file_view else ""
     editor_script = """<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 <script>
@@ -525,6 +660,26 @@ def handle_action(page, url):
                 return True
         except OSError:
             return True
+    if action == "run-script":
+        if allowed_folder is None or path != allowed_folder or not path.is_dir():
+            return True
+        script_name = unquote(query.get("script", [""])[0])
+        scripts = _package_scripts(path)
+        command = scripts.get(script_name)
+        handler = getattr(page, "_folder_command_handler", None)
+        if not command or handler is None:
+            return True
+        handler(path, script_name, command)
+        return True
+    if action == "open-import":
+        if current_file is None or path != current_file:
+            return True
+        spec = unquote(query.get("target", [""])[0])
+        target = _resolve_import_path(path, spec)
+        if target is None or not target.is_file():
+            return True
+        render_file_view(page, target)
+        return True
     if action in {"rename", "edit"} and not path.exists():
         QMessageBox.warning(page.view_widget, "Error", "El elemento ya no existe.")
         return True
@@ -563,12 +718,16 @@ def handle_action(page, url):
         else:
             render_file_view(page, path, editing=False)
         return True
-    if action in {"branch", "commit"}:
+    if action in {"branch", "commit", "toggle-git"}:
         folder = Path(unquote(query.get("path", [""])[0])).absolute()
         if allowed_folder is not None and folder != allowed_folder:
             return True
         root = _git_root(folder)
         if root is None: return True
+        if action == "toggle-git":
+            show_git_history = not bool(page.property("_show_git_history"))
+            render_folder_view(page, folder, show_git_history=show_git_history)
+            return True
         branch = query.get("branch", [""])[0]
         branches = _git_branches(root)
         if branch and branch not in branches: return True
@@ -578,7 +737,16 @@ def handle_action(page, url):
             check = _git_run(root, ["merge-base", "--is-ancestor", commit, branch or "HEAD"])
             if check is None or check.returncode != 0:
                 return True
-        page.setHtml(render_folder_html(folder, branch or None, commit), QUrl.fromLocalFile(str(folder) + os.sep))
+        page.setHtml(
+            render_folder_html(
+                folder,
+                branch or None,
+                commit,
+                show_git_history=bool(page.property("_show_git_history")),
+                command_handler=getattr(page, "_folder_command_handler", None),
+            ),
+            QUrl.fromLocalFile(str(folder) + os.sep),
+        )
         return True
     return False
 
