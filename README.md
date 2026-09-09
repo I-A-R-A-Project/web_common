@@ -33,6 +33,8 @@ necesita.
 - `navigation.py`: ajuste y restablecimiento del zoom de la vista activa,
   pestaña activa, activación de la pestaña `+`, sincronización
   de la barra de dirección y carga de URLs con callbacks específicos.
+- `tabs.py`: `BLOCKED_URLS` contiene prefijos de URLs que no deben navegar ni
+  abrir pestañas nuevas; agregá nuevos destinos bloqueados a esa lista.
 - `assets/epub_reader.html`, `epub_reader.css` y `epub_reader.js`: plantilla
   y comportamiento del lector EPUB, separados del código Python.
 - `assets/local_viewer.html`, `local_viewer.css`, `archive_viewer.html`,

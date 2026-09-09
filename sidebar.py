@@ -2,12 +2,12 @@ import os
 
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QSize
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QHBoxLayout, QStackedWidget, QToolButton, QVBoxLayout, QWidget
 from PyQt6.QtCore import QUrl
 
 from .session import icon_from_data, icon_to_data
+from .tabs import UnifiedWebEnginePage, is_blocked_url
 
 
 class SidebarRail(QWidget):
@@ -139,13 +139,15 @@ class AppPanelOverlay(QWidget):
         app_id = app["id"]
         if app_id not in self.views:
             view = QWebEngineView()
-            page = QWebEnginePage(self.profile, view)
+            page = UnifiedWebEnginePage(self.profile, view)
             view.setPage(page)
             page.newWindowRequested.connect(self._on_new_window_requested)
             view.iconChanged.connect(
                 lambda icon, app_id=app_id: self._on_app_icon_changed(app_id, icon)
             )
-            view.setUrl(QUrl(app["url"]))
+            app_url = QUrl(app["url"])
+            if not is_blocked_url(app_url):
+                view.setUrl(app_url)
             self.views[app_id] = view
             self.stack.addWidget(view)
 
@@ -162,7 +164,8 @@ class AppPanelOverlay(QWidget):
         return self.active_app_id == app_id
 
     def _on_new_window_requested(self, request):
-        requested_host = request.requestedUrl().host().lower()
+        if is_blocked_url(request.requestedUrl()):
+            return
         if self.on_new_window_request:
             self.on_new_window_request(request)
 

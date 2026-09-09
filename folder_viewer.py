@@ -181,7 +181,49 @@ def render_file_html(path, editing=False):
     return _page(path.name, body, file_view=True)
 
 
+def _render_markdown_file_body(path, source):
+    actions = _action_link("edit", path, "✏ Editar")
+    header = (
+        f"<header><span class='entry name-only'><a class='entry-link' href='#' "
+        f"onclick='return entryClick(this,event)'>📝 <span class='path-dir'>{html.escape(str(path.parent) + os.sep)}</span>"
+        f"{_entry_name_span(path)}</a></span>{actions}</header>"
+    )
+    try:
+        import markdown
+    except ImportError:
+        return (
+            header
+            + "<div class='markdown-preview'><h1>Falta el paquete markdown</h1>"
+            + "<p class='muted'>Instalá el paquete <code>markdown</code> para ver este archivo.</p></div>"
+        )
+
+    extensions = ["extra", "sane_lists", "toc", "nl2br"]
+    extension_configs = {}
+    try:
+        from pygments.formatters import HtmlFormatter
+        extensions.append("codehilite")
+        extension_configs["codehilite"] = {"css_class": "highlight", "guess_lang": False}
+        pygments_css = HtmlFormatter(style="github-dark").get_style_defs(".highlight")
+    except ImportError:
+        pygments_css = ""
+
+    body_html = markdown.markdown(
+        source,
+        extensions=extensions,
+        extension_configs=extension_configs,
+        output_format="html5",
+    )
+    return (
+        header
+        + f"<div class='markdown-preview'><article class='markdown-body'>{body_html}</article></div>"
+        + f"{('<style>' + pygments_css + '</style>') if pygments_css else ''}"
+    )
+
+
 def _file_body(path, source, editing=False):
+    if not editing and path.suffix.lower() in {".md", ".markdown"}:
+        return _render_markdown_file_body(path, source)
+
     actions = (
         f'{_action_link("cancel", path, "Cancelar")}'
         f'<a class="button" href="#" onclick="return saveEditLink(this)">Guardar</a>'

@@ -1,0 +1,63 @@
+*{box-sizing:border-box}
+body{margin:0;background:#1e1e1e;color:#e6e6e6;
+  font-family:-apple-system,'Segoe UI',Arial,sans-serif}
+
+header{padding:14px 20px;border-bottom:1px solid #3a3a3a;color:#aaa;
+  font-size:13px;word-break:break-all}
+
+main{height:calc(100vh - 48px);overflow:auto}
+
+.markdown-body{max-width:900px;margin:0 auto;padding:32px 24px 64px;
+  font-size:15.5px;line-height:1.65}
+
+.markdown-body h1,.markdown-body h2,.markdown-body h3,
+.markdown-body h4,.markdown-body h5,.markdown-body h6{
+  font-weight:600;margin:24px 0 16px;line-height:1.25}
+.markdown-body h1{font-size:2em;padding-bottom:.3em;border-bottom:1px solid #3a3a3a}
+.markdown-body h2{font-size:1.5em;padding-bottom:.3em;border-bottom:1px solid #3a3a3a}
+.markdown-body h3{font-size:1.25em}
+.markdown-body h4{font-size:1em}
+.markdown-body h5{font-size:.875em}
+.markdown-body h6{font-size:.85em;color:#999}
+.markdown-body h1:first-child,.markdown-body h2:first-child{margin-top:0}
+
+.markdown-body p,.markdown-body ul,.markdown-body ol,
+.markdown-body blockquote,.markdown-body table,.markdown-body pre,
+.markdown-body dl{margin:0 0 16px}
+
+.markdown-body a{color:#6cb6ff;text-decoration:none}
+.markdown-body a:hover{text-decoration:underline}
+
+.markdown-body ul,.markdown-body ol{padding-left:2em}
+.markdown-body li+li{margin-top:.25em}
+.markdown-body li>p{margin-top:16px}
+
+.markdown-body .task-list-item{list-style-type:none;margin-left:-1.6em}
+.markdown-body .task-list-item input{margin-right:.5em;vertical-align:middle}
+
+.markdown-body code{background:#2c2c2c;padding:.2em .4em;border-radius:6px;
+  font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',monospace;
+  font-size:85%}
+.markdown-body pre{background:#161616;border:1px solid #3a3a3a;border-radius:6px;
+  padding:16px;overflow:auto;line-height:1.45}
+.markdown-body pre code{background:none;padding:0;font-size:85%;border-radius:0}
+.markdown-body .highlight{border-radius:6px}
+.markdown-body .highlight pre{border-radius:6px}
+
+.markdown-body blockquote{margin:0 0 16px;padding:0 1em;
+  color:#9a9a9a;border-left:.25em solid #3a3a3a}
+.markdown-body blockquote>:last-child{margin-bottom:0}
+
+.markdown-body table{width:100%;border-collapse:collapse;display:block;overflow:auto}
+.markdown-body table th,.markdown-body table td{border:1px solid #3a3a3a;
+  padding:6px 13px}
+.markdown-body table th{font-weight:600;background:#262626}
+.markdown-body table tr{background:#1e1e1e}
+.markdown-body table tr:nth-child(2n){background:#252525}
+
+.markdown-body img{max-width:100%;border-radius:4px}
+.markdown-body hr{height:1px;background:#3a3a3a;border:0;margin:24px 0}
+
+.markdown-body kbd{display:inline-block;padding:2px 6px;font-size:85%;
+  background:#2c2c2c;border:1px solid #4a4a4a;border-bottom-color:#3a3a3a;
+  border-radius:6px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}

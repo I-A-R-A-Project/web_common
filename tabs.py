@@ -15,12 +15,25 @@ from .local_file_types import is_text_file
 VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mkv", ".avi", ".mov")
 SPECIAL_LOCAL_EXTS = (".zip", ".rar", ".7z", ".epub") + VIDEO_EXTS
 
+# Keep this list as URL prefixes so additional ad/tracking destinations can be
+# added without changing the navigation policy.
+BLOCKED_URLS = (
+    "https://adclick.g.doubleclick.net/",
+)
+
+
+def is_blocked_url(url) -> bool:
+    """Return whether a URL matches one of the blocked navigation prefixes."""
+    value = url.toString() if isinstance(url, QUrl) else str(url or "")
+    normalized = value.strip().lower()
+    return any(normalized.startswith(prefix) for prefix in BLOCKED_URLS)
+
 
 def create_profiled_web_view(profile, parent=None, url=None):
     """Crea una vista QWebEngine con una página ligada al perfil indicado."""
     view = QWebEngineView(parent)
     view.setPage(QWebEnginePage(profile, view))
-    if url is not None:
+    if url is not None and not is_blocked_url(url):
         view.setUrl(url if isinstance(url, QUrl) else QUrl(url))
     return view
 
@@ -308,7 +321,11 @@ class TabbedPopupWindow(QMainWindow):
 
     def _navigate(self, text):
         url = address_to_url(text, search_url="https://www.google.com/search?q={query}")
-        if url is not None and self.current_view() is not None:
+        if (
+            url is not None
+            and not is_blocked_url(url)
+            and self.current_view() is not None
+        ):
             self.current_view().setUrl(url)
 
     def _update_address(self, view, url):
@@ -381,6 +398,8 @@ class UnifiedWebEnginePage(QWebEnginePage):
         return popup_window.current_page()
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        if is_blocked_url(url):
+            return False
         from . import folder_viewer
         if is_main_frame and url.scheme() == "browser-action":
             return not folder_viewer.handle_action(self, url)
@@ -465,6 +484,8 @@ class UnifiedWebTab(QWebEngineView):
             self._icon_changed_handler(self, icon)
 
     def _on_new_window_requested(self, request):
+        if is_blocked_url(request.requestedUrl()):
+            return
         if self._new_window_handler:
             self._new_window_handler(request)
 

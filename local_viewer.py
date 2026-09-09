@@ -349,6 +349,55 @@ def render_rar_listing(path):
     return _archive_page(os.path.basename(path), body)
 
 
+def render_markdown(path):
+    """Convierte un archivo Markdown a HTML con estilo similar a GitHub."""
+    try:
+        import markdown
+    except ImportError:
+        return render_missing_dependency(path, "markdown")
+
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return render_error(path, f"No se pudo leer el archivo: {exc}")
+
+    extensions = ["extra", "sane_lists", "toc", "nl2br"]
+    extension_configs = {}
+    pygments_css = ""
+    try:
+        from pygments.formatters import HtmlFormatter
+
+        extensions.append("codehilite")
+        extension_configs["codehilite"] = {"css_class": "highlight", "guess_lang": False}
+        pygments_css = HtmlFormatter(style="github-dark").get_style_defs(".highlight")
+    except ImportError:
+        pass
+
+    body_html = markdown.markdown(
+        text,
+        extensions=extensions,
+        extension_configs=extension_configs,
+        output_format="html5",
+    )
+
+    body = (
+        f"<header>📝 {html.escape(str(Path(path).resolve()))}</header>"
+        f"<main><article class='markdown-body'>{body_html}</article></main>"
+    )
+    return _markdown_page(os.path.basename(path), body, pygments_css)
+
+
+def _markdown_page(title, body, extra_css=""):
+    template = (ASSETS_DIR / "markdown_viewer.html").read_text(encoding="utf-8")
+    inline_css = f"<style>{extra_css}</style>" if extra_css else ""
+    return (
+        template.replace("__TITLE__", html.escape(title))
+        .replace("__CSS_URL__", QUrl.fromLocalFile(str(ASSETS_DIR / "markdown_viewer.css")).toString())
+        .replace("__EXTRA_CSS__", inline_css)
+        .replace("__BODY__", body)
+    )
+
+
 def _archive_page(title, body):
     template = (ASSETS_DIR / "archive_viewer.html").read_text(encoding="utf-8")
     return (
@@ -415,6 +464,10 @@ def open_local_target(tab, local_path, cache_dir=None, epub_handler=None):
                     ),
                     QUrl.fromLocalFile(local_path),
                 )
+            return True
+
+        if ext in (".md", ".markdown"):
+            tab.page().setHtml(render_markdown(local_path), QUrl.fromLocalFile(local_path))
             return True
 
         if ext == ".epub":

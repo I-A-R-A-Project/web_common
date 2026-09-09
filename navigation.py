@@ -3,6 +3,7 @@
 from PyQt6.QtCore import QUrl
 
 from .navbar import address_to_url
+from .tabs import is_blocked_url
 
 
 def set_zoom(view_getter, factor, persist=None):
@@ -66,7 +67,7 @@ def sync_address_bar(
 def navigate_view(view_getter, text, *, search_url=None):
     """Convierte una dirección y la carga en la vista activa."""
     target = address_to_url(text, search_url=search_url)
-    if target is None:
+    if target is None or is_blocked_url(target):
         return None
     view = view_getter()
     if view is None:
