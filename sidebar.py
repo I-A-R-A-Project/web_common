@@ -10,6 +10,99 @@ from .session import icon_from_data, icon_to_data
 from .tabs import UnifiedWebEnginePage, is_blocked_url
 
 
+WHATSAPP_CHATLIST_SCRIPT = r"""
+(function () {
+    if (window.__iaraWhatsAppChatlistToggleInstalled) {
+        return;
+    }
+    window.__iaraWhatsAppChatlistToggleInstalled = true;
+
+    function installToggle() {
+        var leftDrawer = document.querySelector(
+            '[data-testid="drawer-left"]'
+        );
+        if (leftDrawer) {
+            leftDrawer.style.setProperty("display", "none", "important");
+        }
+
+        var navbar = document.querySelector(
+            '[data-testid="navbar-primary-section"]'
+        );
+        var chatlistHeader = document.querySelector(
+            'header[data-testid="chatlist-header"]'
+        );
+        if (!navbar || !chatlistHeader) {
+            return;
+        }
+
+        // Keep the header (and this button) visible; only collapse the side
+        // panel that contains the search and chat list.
+        var chatlist = document.querySelector("#side");
+        var chatlistContainer = chatlist && chatlist.parentElement;
+        if (
+            !chatlistContainer
+            || chatlistContainer.dataset.iaraChatlistToggleTarget === "true"
+        ) {
+            return;
+        }
+        chatlistContainer.dataset.iaraChatlistToggleTarget = "true";
+
+        var button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("aria-label", "Mostrar u ocultar lista de chats");
+        button.title = "Mostrar u ocultar lista de chats";
+        button.textContent = "←";
+        button.style.cssText = [
+            "align-items:center",
+            "background:transparent",
+            "border:0",
+            "border-radius:50%",
+            "color:inherit",
+            "cursor:pointer",
+            "display:inline-flex",
+            "font-size:20px",
+            "height:40px",
+            "justify-content:center",
+            "margin:0 4px",
+            "transition:transform 160ms ease",
+            "width:40px"
+        ].join(";");
+
+        var hidden = false;
+        button.addEventListener("click", function () {
+            hidden = !hidden;
+            chatlistContainer.style.setProperty(
+                "display",
+                hidden ? "none" : "",
+                hidden ? "important" : ""
+            );
+            button.style.transform = hidden ? "rotate(180deg)" : "rotate(0deg)";
+            button.setAttribute(
+                "aria-label",
+                hidden
+                    ? "Mostrar lista de chats"
+                    : "Ocultar lista de chats"
+            );
+            button.title = button.getAttribute("aria-label");
+        });
+        navbar.appendChild(button);
+    }
+
+    installToggle();
+    new MutationObserver(installToggle).observe(document.documentElement, {
+        childList: true,
+        subtree: true
+    });
+})();
+"""
+
+
+def is_whatsapp_web_url(url):
+    """Return whether a URL belongs to the WhatsApp Web application."""
+    host = url.host().lower().rstrip(".") if isinstance(url, QUrl) else ""
+    return host == "web.whatsapp.com" or host.endswith(".web.whatsapp.com")
+
+
 class SidebarRail(QWidget):
     WIDTH = 52
 
@@ -146,6 +239,12 @@ class AppPanelOverlay(QWidget):
                 lambda icon, app_id=app_id: self._on_app_icon_changed(app_id, icon)
             )
             app_url = QUrl(app["url"])
+            if is_whatsapp_web_url(app_url):
+                view.loadFinished.connect(
+                    lambda _ok, page=page: page.runJavaScript(
+                        WHATSAPP_CHATLIST_SCRIPT
+                    )
+                )
             if not is_blocked_url(app_url):
                 view.setUrl(app_url)
             self.views[app_id] = view
