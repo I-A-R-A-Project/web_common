@@ -67,8 +67,8 @@ Usá `install_tab_context_menu()` desde la ventana que posee el
 mantener cualquier pestaña especial, como la pestaña `+`; el helper solo
 construye las acciones comunes.
 
-Los cambios en esta carpeta pueden afectar simultáneamente a los navegadores y
-navegadores. Conservá las importaciones relativas y la capacidad de ejecutar
+Los cambios en esta carpeta pueden afectar simultáneamente a MiniBrowser y
+WebAgent. Conservá las importaciones relativas y la capacidad de ejecutar
 cada aplicación directamente desde su propio directorio.
 
 ## Organización interna

@@ -17,26 +17,27 @@ WHATSAPP_CHATLIST_SCRIPT = r"""
     }
     window.__iaraWhatsAppChatlistToggleInstalled = true;
 
-    function installToggle() {
-        var leftDrawer = document.querySelector(
-            '[data-testid="drawer-left"]'
-        );
-        if (leftDrawer) {
-            leftDrawer.style.setProperty("display", "none", "important");
-        }
-
-        var navbar = document.querySelector(
-            '[data-testid="navbar-primary-section"]'
-        );
-        var chatlistHeader = document.querySelector(
-            'header[data-testid="chatlist-header"]'
-        );
-        if (!navbar || !chatlistHeader) {
+    function updateDrawerLeftVisibility() {
+        // [data-testid="drawer-left"] es el panel que WhatsApp Web
+        // reutiliza para Estados, Canales, Comunidades y el perfil propio
+        // ("Tú"). En Chats queda vacío pero conserva su borde, por eso lo
+        // ocultamos SOLO cuando no tiene contenido; en cuanto WhatsApp lo
+        // llena (al abrir esas pestañas) lo dejamos visible normalmente.
+        var drawerLeft = document.querySelector('[data-testid="drawer-left"]');
+        if (!drawerLeft) {
             return;
         }
+        var hasContent = drawerLeft.textContent.trim().length > 0;
+        if (hasContent) {
+            drawerLeft.style.removeProperty("display");
+        } else {
+            drawerLeft.style.setProperty("display", "none", "important");
+        }
+    }
 
-        // Keep the header (and this button) visible; only collapse the side
-        // panel that contains the search and chat list.
+    function installToggle() {
+        updateDrawerLeftVisibility();
+
         var chatlist = document.querySelector("#side");
         var chatlistContainer = chatlist && chatlist.parentElement;
         if (
@@ -47,45 +48,49 @@ WHATSAPP_CHATLIST_SCRIPT = r"""
         }
         chatlistContainer.dataset.iaraChatlistToggleTarget = "true";
 
-        var button = document.createElement("button");
-        button.type = "button";
-        button.setAttribute("aria-label", "Mostrar u ocultar lista de chats");
-        button.title = "Mostrar u ocultar lista de chats";
-        button.textContent = "←";
-        button.style.cssText = [
-            "align-items:center",
-            "background:transparent",
-            "border:0",
-            "border-radius:50%",
-            "color:inherit",
-            "cursor:pointer",
-            "display:inline-flex",
-            "font-size:20px",
-            "height:40px",
-            "justify-content:center",
-            "margin:0 4px",
-            "transition:transform 160ms ease",
-            "width:40px"
-        ].join(";");
+        function hideChatlist() {
+            chatlistContainer.style.setProperty("display", "none", "important");
+        }
 
-        var hidden = false;
-        button.addEventListener("click", function () {
-            hidden = !hidden;
-            chatlistContainer.style.setProperty(
-                "display",
-                hidden ? "none" : "",
-                hidden ? "important" : ""
-            );
-            button.style.transform = hidden ? "rotate(180deg)" : "rotate(0deg)";
-            button.setAttribute(
-                "aria-label",
-                hidden
-                    ? "Mostrar lista de chats"
-                    : "Ocultar lista de chats"
-            );
-            button.title = button.getAttribute("aria-label");
-        });
-        navbar.appendChild(button);
+        function showChatlist() {
+            chatlistContainer.style.removeProperty("display");
+        }
+
+        // Delegated, capture-phase listener so it keeps working across
+        // WhatsApp Web's own React re-renders without having to be
+        // re-attached to each chat row or navbar button.
+        document.addEventListener(
+            "click",
+            function (event) {
+                var chatCell = event.target.closest(
+                    '[data-testid="cell-frame-container"]'
+                );
+                if (chatCell && chatlistContainer.contains(chatCell)) {
+                    hideChatlist();
+                    return;
+                }
+
+                // No restringimos a navbar-primary-section: el botón de
+                // "Tú" (perfil propio) vive en navbar-footer-section, y
+                // data-navbar-item="true" identifica a cualquier botón
+                // de navegación sin importar en qué sección esté.
+                var navButton = event.target.closest(
+                    '[data-navbar-item="true"]'
+                );
+                if (navButton) {
+                    var label = navButton.getAttribute("aria-label") || "";
+                    if (label === "Meta AI") {
+                        // Meta AI se abre como si fuera un chat más: si el
+                        // panel estaba abierto, se pliega igual que al
+                        // tocar cualquier conversación.
+                        hideChatlist();
+                    } else {
+                        showChatlist();
+                    }
+                }
+            },
+            true
+        );
     }
 
     installToggle();
