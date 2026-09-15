@@ -5,6 +5,7 @@ import json
 import os
 import re
 import subprocess
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote
 
@@ -288,6 +289,21 @@ def _entry_name_span(path):
     )
 
 
+def _entry_dates(entry):
+    try:
+        metadata = entry.stat()
+    except OSError:
+        return "", "", 0, 0
+    created = datetime.fromtimestamp(metadata.st_ctime)
+    modified = datetime.fromtimestamp(metadata.st_mtime)
+    return (
+        created.strftime("%Y-%m-%d %H:%M"),
+        modified.strftime("%Y-%m-%d %H:%M"),
+        metadata.st_ctime,
+        metadata.st_mtime,
+    )
+
+
 def _package_scripts(folder):
     """Devuelve los scripts declarados por package.json en la carpeta."""
     package_path = Path(folder) / "package.json"
@@ -333,11 +349,20 @@ def render_folder_html(
     for entry in entries:
         url = html.escape(entry.as_uri() + ("/" if entry.is_dir() else ""))
         name_span = _entry_name_span(entry)
+        created_text, modified_text, created_timestamp, modified_timestamp = _entry_dates(entry)
+        entry_attrs = (
+            f' data-name="{html.escape(entry.name.casefold(), quote=True)}"'
+            f' data-created="{created_timestamp}" data-modified="{modified_timestamp}"'
+        )
+        dates = (
+            f'<span class="entry-dates"><span title="Creación">Creado: {created_text or "—"}</span>'
+            f'<span title="Modificación">Modificado: {modified_text or "—"}</span></span>'
+        )
         if entry.is_dir():
             rows.append(
-                f'<span class="entry dir"><a class="entry-link" href="#" data-url="{url}" '
+                f'<span class="entry folder-entry dir"{entry_attrs}><a class="entry-link" href="#" data-url="{url}" '
                 f'onclick="return entryClick(this,event)" ondblclick="return entryDblClick(this,event)">'
-                f'📁 {name_span}</a></span>'
+                f'📁 {name_span}{dates}</a></span>'
             )
         else:
             try:
@@ -346,9 +371,9 @@ def render_folder_html(
             except OSError:
                 size_text = ""
             rows.append(
-                f'<span class="entry file"><a class="entry-link" href="#" data-url="{url}" '
+                f'<span class="entry folder-entry file"{entry_attrs}><a class="entry-link" href="#" data-url="{url}" '
                 f'onclick="return entryClick(this,event)" ondblclick="return entryDblClick(this,event)">'
-                f'📄 {name_span}<span class="size">{html.escape(size_text)}</span></a></span>'
+                f'📄 {name_span}<span class="entry-details"><span class="size">{html.escape(size_text)} </span>{dates}</span></a></span>'
             )
     root = _git_root(folder)
     git_html = ""
@@ -396,7 +421,13 @@ def render_folder_html(
         )
     body = (
         f"<header>{heading}{git_toggle}</header><main>"
-        f"<section class='folder-scroll'>{scripts_html}<h2>Contenido</h2>"
+        f"<section class='folder-scroll'>{scripts_html}<h2>Contenido "
+        f"<span class='sort-controls'><label for='folder-sort'>Ordenar por</label>"
+        f"<select id='folder-sort' onchange='sortFolderEntries(this.value)'>"
+        f"<option value='name'>Nombre</option><option value='modified'>Modificación</option>"
+        f"<option value='created'>Creación</option></select>"
+        f"<button type='button' id='folder-sort-direction' onclick='toggleFolderSortDirection()' "
+        f"title='Cambiar sentido de orden'>↑</button></span></h2>"
         f"{''.join(rows) or '<p class=\"muted\">Carpeta vacía</p>'}</section>"
         f"{git_html}</main>"
     )

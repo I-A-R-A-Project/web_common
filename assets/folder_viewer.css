@@ -2,11 +2,16 @@
 header{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 20px;background:#1c1d21;border-bottom:1px solid #2c2d31;color:#9aa0a6;word-break:break-all;position:sticky;top:0;z-index:20}
 main{display:flex;gap:20px;height:calc(100vh - 65px);padding:16px}section{flex:1;min-width:0;min-height:0}.folder-scroll,.git{overflow:auto}
 h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7b8087;margin:4px 0 10px;display:flex;align-items:center;gap:8px}
+h2 .sort-controls{display:inline-flex;align-items:center;gap:5px;margin-left:auto;text-transform:none;letter-spacing:normal;font-weight:normal}
+h2 .sort-controls label{font-size:11px}
+h2 .sort-controls select{padding:3px 5px;background:#2a2b30;color:#c7cad0;border:1px solid #3a3b42;border-radius:5px;font-size:11px}
+h2 .sort-controls button{margin:0;padding:2px 7px;font-size:13px}
 a{color:#e6e6e6}.entry{display:flex;align-items:center;padding:6px 10px;border-radius:8px;font-size:13.5px;text-decoration:none;transition:background-color .1s}
 a.entry{justify-content:space-between}.entry:hover,.commit:hover{background:#24252a}.entry.selected{background:#20262e;outline:1px solid #33404d}.entry.renaming{background:#20262e;outline:1px solid #4a90e2}
 .entry.name-only{padding:2px 4px}.entry.name-only:hover{background:none}.entry.name-only.selected,.entry.name-only.renaming{background:none;outline:none}
 .entry-link{flex:1;min-width:0;display:flex;align-items:center;gap:8px;color:#e6e6e6;text-decoration:none;overflow:hidden;cursor:pointer}
 .entry-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;padding:1px 3px}.entry-name[contenteditable="true"]{background:#101114;outline:1px solid #4a90e2;white-space:normal;overflow:visible;cursor:text}.path-dir{color:#6c7077}
+.entry-dates{display:flex;gap:12px;margin-left:auto;color:#7b8087;font-size:11px;white-space:nowrap}.entry-details{display:flex;align-items:center;margin-left:auto}.entry-details .entry-dates{margin-left:0}
 .package-scripts{margin-bottom:18px}.script-buttons{display:flex;flex-wrap:wrap;gap:6px}.action,.button{display:inline-flex;align-items:center;justify-content:center;padding:3px 7px;background:#2a2b30;color:#c7cad0;border-radius:6px;text-decoration:none;font-size:12px;border:none}
 .action:hover,.button:hover{background:#3a3b42;color:#f1f3f4}.size,.muted{color:#7b8087;font-size:12px}.size{margin-left:8px;flex-shrink:0}.commit{padding:6px 10px;border-radius:6px;font:12px "SF Mono",Consolas,monospace;color:#c7cad0}.commit a{text-decoration:none;color:inherit}
 .code{margin:0;padding:20px;overflow:auto;font:13px/1.5 "SF Mono",Consolas,monospace;background:#141518;color:#ddd}.commit-detail{white-space:pre-wrap;background:#141518;padding:10px;border-radius:6px;margin-top:6px}

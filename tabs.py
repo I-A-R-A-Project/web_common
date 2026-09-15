@@ -381,12 +381,6 @@ class UnifiedWebEnginePage(QWebEnginePage):
             and self.new_tab_page_handler
         ):
             return self.new_tab_page_handler()
-        if (
-            window_type == QWebEnginePage.WebWindowType.WebBrowserWindow
-            and self.new_window_page_handler
-        ):
-            return self.new_window_page_handler()
-
         popup_window = TabbedPopupWindow(
             self.profile(),
             folder_view_handler=self.folder_view_handler,

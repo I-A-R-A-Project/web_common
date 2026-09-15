@@ -34,6 +34,29 @@ function beginRename(nameEl) {
   nameEl.addEventListener('blur', onBlur); nameEl.addEventListener('keydown', onKey);
 }
 function openImport(link) { location.href = link.dataset.action; return false; }
+let folderSortDescending = false;
+function sortFolderEntries(field) {
+  const container = document.querySelector('.folder-scroll');
+  if (!container) return;
+  const entries = [...container.querySelectorAll('.folder-entry')];
+  entries.sort(function (a, b) {
+    let comparison;
+    if (field === 'name') {
+      comparison = a.dataset.name.localeCompare(b.dataset.name);
+    } else {
+      comparison = Number(a.dataset[field]) - Number(b.dataset[field]);
+      if (!comparison) comparison = a.dataset.name.localeCompare(b.dataset.name);
+    }
+    return folderSortDescending ? -comparison : comparison;
+  });
+  entries.forEach(function (entry) { container.appendChild(entry); });
+}
+function toggleFolderSortDirection() {
+  folderSortDescending = !folderSortDescending;
+  const button = document.getElementById('folder-sort-direction');
+  button.textContent = folderSortDescending ? '↓' : '↑';
+  sortFolderEntries(document.getElementById('folder-sort').value);
+}
 function startEdit() { document.getElementById('viewer').hidden = true; document.querySelector('header button').hidden = true; document.getElementById('editor').hidden = false; document.getElementById('editor').focus(); }
 function cancelEdit() { location.href = 'browser-action://cancel?path=' + encodeURIComponent(document.getElementById('editor').dataset.path); }
 function saveEditLink(link) {
