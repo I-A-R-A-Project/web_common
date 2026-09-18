@@ -9,7 +9,9 @@ necesita.
 
 - `tabs.py`: pestañas WebEngine, ventanas emergentes con pestañas y menú
   contextual común (sonido y cierre de pestañas), incluida la configuración
-  del ciclo de vida del `QTabWidget` mediante `configure_tab_widget()`.
+  del ciclo de vida del `QTabWidget` mediante `configure_tab_widget()`. Las
+  ventanas emergentes de login de Google se cierran automáticamente cuando su
+  única pestaña llega a `https://accounts.google.com/gsi/transform`.
 - `navbar.py`: barra de navegación, conversión de direcciones y guardado de
   páginas.
 - `web_profiles.py`: creación de perfiles aislados de Qt WebEngine. Usa un

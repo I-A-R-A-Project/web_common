@@ -20,6 +20,7 @@ SPECIAL_LOCAL_EXTS = (".zip", ".rar", ".7z", ".epub") + VIDEO_EXTS
 BLOCKED_URLS = (
     "https://adclick.g.doubleclick.net/",
 )
+GOOGLE_LOGIN_COMPLETION_URL = "https://accounts.google.com/gsi/transform"
 
 
 def is_blocked_url(url) -> bool:
@@ -27,6 +28,17 @@ def is_blocked_url(url) -> bool:
     value = url.toString() if isinstance(url, QUrl) else str(url or "")
     normalized = value.strip().lower()
     return any(normalized.startswith(prefix) for prefix in BLOCKED_URLS)
+
+
+def is_google_login_completion_url(url) -> bool:
+    """Return whether a URL is the completed Google login popup destination."""
+    value = url.toString() if isinstance(url, QUrl) else str(url or "")
+    parsed = QUrl(value.strip())
+    return (
+        parsed.scheme().lower() == "https"
+        and parsed.host().lower() == "accounts.google.com"
+        and parsed.path() == "/gsi/transform"
+    )
 
 
 def create_profiled_web_view(profile, parent=None, url=None):
@@ -248,6 +260,7 @@ class TabbedPopupWindow(QMainWindow):
         special_local_handler=None,
         file_view_handler=None,
         view_factory=None,
+        new_tab_content_handler=None,
     ):
         super().__init__()
         self.setWindowTitle("Nueva ventana")
@@ -257,10 +270,17 @@ class TabbedPopupWindow(QMainWindow):
         self.special_local_handler = special_local_handler
         self.file_view_handler = file_view_handler
         self.view_factory = view_factory
+        self.new_tab_content_handler = new_tab_content_handler
         self.tabs = QTabWidget()
-        self.tabs.setTabsClosable(True)
-        self.tabs.tabCloseRequested.connect(self._close_tab)
-        self.tabs.currentChanged.connect(self._on_tab_changed)
+        prepare_tab_widget(self.tabs)
+        self.plus_widget = add_plus_tab(self.tabs)
+        configure_tab_widget(
+            self.tabs,
+            close_tab=self._close_tab,
+            plus_widget=self.plus_widget,
+            current_changed=self._on_tab_changed,
+            tab_bar_clicked=self._open_plus_tab,
+        )
 
         navbar = BasicNavbar(self)
         navbar.on_back = lambda: self._call_current("back")
@@ -292,7 +312,8 @@ class TabbedPopupWindow(QMainWindow):
 
     def _add_tab(self):
         view = self._create_view()
-        index = self.tabs.addTab(view, "Nueva pestaña")
+        insert_at = self.tabs.indexOf(self.plus_widget)
+        index = self.tabs.insertTab(insert_at, view, "Nueva pestaña")
         self.tabs.setCurrentIndex(index)
         view.titleChanged.connect(
             lambda title, tab=view: self._update_title(tab, title)
@@ -300,7 +321,39 @@ class TabbedPopupWindow(QMainWindow):
         view.urlChanged.connect(
             lambda url, tab=view: self._update_address(tab, url)
         )
+        view.urlChanged.connect(
+            lambda url, tab=view: self._maybe_close_google_login(tab, url)
+        )
+        if self.new_tab_content_handler:
+            view.page().setHtml(
+                self.new_tab_content_handler(),
+                QUrl("about:blank"),
+            )
         return view
+
+    def _maybe_close_google_login(self, view, url):
+        real_tabs = [
+            self.tabs.widget(index)
+            for index in range(self.tabs.count())
+            if self.tabs.widget(index) is not self.plus_widget
+        ]
+        if len(real_tabs) != 1 or real_tabs[0] is not view:
+            return
+        if not is_google_login_completion_url(url):
+            return
+        QTimer.singleShot(0, self._close_after_google_login)
+
+    def _close_after_google_login(self):
+        real_tabs = [
+            self.tabs.widget(index)
+            for index in range(self.tabs.count())
+            if self.tabs.widget(index) is not self.plus_widget
+        ]
+        if (
+            len(real_tabs) == 1
+            and is_google_login_completion_url(real_tabs[0].url())
+        ):
+            self.close()
 
     def _new_tab_page(self):
         return self._new_tab_view().page()
@@ -308,11 +361,18 @@ class TabbedPopupWindow(QMainWindow):
     def _new_tab_view(self):
         return self._add_tab()
 
+    def _open_plus_tab(self, index):
+        if self.tabs.widget(index) is self.plus_widget:
+            return self._new_tab_view()
+        return None
+
     def current_page(self):
-        return self.tabs.currentWidget().page()
+        view = self.current_view()
+        return view.page() if view is not None else None
 
     def current_view(self):
-        return self.tabs.currentWidget()
+        view = self.tabs.currentWidget()
+        return None if view is self.plus_widget else view
 
     def _call_current(self, method):
         view = self.current_view()
@@ -334,7 +394,9 @@ class TabbedPopupWindow(QMainWindow):
 
     def _on_tab_changed(self, _index):
         view = self.current_view()
-        self.address_bar.setText(view.url().toString() if view else "")
+        self.address_bar.setText(
+            view.url().toString() if view is not None and hasattr(view, "url") else ""
+        )
 
     def _update_title(self, view, title):
         index = self.tabs.indexOf(view)
@@ -348,10 +410,12 @@ class TabbedPopupWindow(QMainWindow):
             self.tabs.setTabText(index, (title or "Nueva pestaña")[:30])
 
     def _close_tab(self, index):
+        if self.tabs.widget(index) is self.plus_widget:
+            return
         view = self.tabs.widget(index)
         self.tabs.removeTab(index)
         view.deleteLater()
-        if self.tabs.count() == 0:
+        if self.tabs.count() <= 1:
             self.close()
 
 
