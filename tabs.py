@@ -44,10 +44,40 @@ def is_google_login_completion_url(url) -> bool:
 def create_profiled_web_view(profile, parent=None, url=None):
     """Crea una vista QWebEngine con una página ligada al perfil indicado."""
     view = QWebEngineView(parent)
-    view.setPage(QWebEnginePage(profile, view))
+    page = QWebEnginePage(profile, view)
+    view.setPage(page)
+    install_fullscreen_handler(view, page)
     if url is not None and not is_blocked_url(url):
         view.setUrl(url if isinstance(url, QUrl) else QUrl(url))
     return view
+
+
+def install_fullscreen_handler(view, page=None):
+    """Acepta el fullscreen HTML5 y restaura el estado previo de la ventana."""
+    page = page or view.page()
+
+    def handle_request(request):
+        window = view.window()
+        if window is None:
+            request.reject()
+            return
+
+        if request.toggleOn():
+            view._fullscreen_was_fullscreen = window.isFullScreen()
+            view._fullscreen_was_maximized = window.isMaximized()
+            request.accept()
+            window.showFullScreen()
+        else:
+            request.accept()
+            if getattr(view, "_fullscreen_was_fullscreen", False):
+                return
+            if getattr(view, "_fullscreen_was_maximized", False):
+                window.showMaximized()
+            else:
+                window.showNormal()
+
+    page.fullScreenRequested.connect(handle_request)
+    view._fullscreen_handler = handle_request
 
 
 class ContextTabBar(QTabBar):
@@ -511,6 +541,7 @@ class UnifiedWebTab(QWebEngineView):
             new_window_page_handler=new_window_handler,
         )
         self.setPage(page)
+        install_fullscreen_handler(self, page)
 
         self._new_window_handler = new_window_handler
         self._url_changed_handler = url_changed_handler

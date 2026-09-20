@@ -7,7 +7,11 @@ from PyQt6.QtWidgets import QHBoxLayout, QStackedWidget, QToolButton, QVBoxLayou
 from PyQt6.QtCore import QUrl
 
 from .session import icon_from_data, icon_to_data
-from .tabs import UnifiedWebEnginePage, is_blocked_url
+from .tabs import (
+    UnifiedWebEnginePage,
+    install_fullscreen_handler,
+    is_blocked_url,
+)
 
 
 WHATSAPP_CHATLIST_SCRIPT = r"""
@@ -239,6 +243,7 @@ class AppPanelOverlay(QWidget):
             view = QWebEngineView()
             page = UnifiedWebEnginePage(self.profile, view)
             view.setPage(page)
+            install_fullscreen_handler(view, page)
             page.newWindowRequested.connect(self._on_new_window_requested)
             view.iconChanged.connect(
                 lambda icon, app_id=app_id: self._on_app_icon_changed(app_id, icon)

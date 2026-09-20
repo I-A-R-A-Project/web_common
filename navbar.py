@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import QUrl
-from PyQt6.QtWidgets import QToolBar, QLineEdit
+from PyQt6.QtWidgets import QToolBar, QLineEdit, QSizePolicy
 from PyQt6.QtGui import QAction
 
 
@@ -53,6 +53,7 @@ def bind_navigation(
     reload_handler=None,
     save_handler=None,
     history_handler=None,
+    sidebar_handler=None,
 ):
     """Conecta una BasicNavbar a la vista activa de una ventana."""
     navbar.on_back = lambda: _call_view(view_getter, "back")
@@ -62,6 +63,8 @@ def bind_navigation(
     navbar.on_address_bar_enter = address_handler
     navbar.on_save_page = save_handler or (lambda: save_web_page(view_getter()))
     navbar.on_history = history_handler
+    navbar.on_sidebar_toggle = sidebar_handler
+    navbar.sidebar_toggle_action.setVisible(sidebar_handler is not None)
     return navbar
 
 
@@ -115,6 +118,10 @@ class BasicNavbar(QToolBar):
     def __init__(self, parent=None):
         super().__init__("Navegación", parent)
         self.setMovable(False)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
 
         # Callbacks que se asignan desde el navegador
         self.on_back = None
@@ -123,6 +130,7 @@ class BasicNavbar(QToolBar):
         self.on_stop = None
         self.on_save_page = None
         self.on_history = None
+        self.on_sidebar_toggle = None
         self.on_address_bar_enter = None
 
         # Botón Atrás
@@ -152,6 +160,10 @@ class BasicNavbar(QToolBar):
         # Barra de dirección
         self.address_bar = QLineEdit()
         self.address_bar.setPlaceholderText("URL...")
+        self.address_bar.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         self.address_bar.returnPressed.connect(self._on_address_bar_enter)
         self.addWidget(self.address_bar)
 
@@ -166,6 +178,14 @@ class BasicNavbar(QToolBar):
         self.history_action.setToolTip("Historial")
         self.history_action.triggered.connect(self._on_history_clicked)
         self.addAction(self.history_action)
+
+        self.sidebar_toggle_action = QAction("🚀", self)
+        self.sidebar_toggle_action.setToolTip("Mostrar/ocultar barra lateral")
+        self.sidebar_toggle_action.setCheckable(True)
+        self.sidebar_toggle_action.setChecked(True)
+        self.sidebar_toggle_action.setVisible(False)
+        self.sidebar_toggle_action.toggled.connect(self._on_sidebar_toggle_clicked)
+        self.addAction(self.sidebar_toggle_action)
 
     def _on_back_clicked(self):
         if self.on_back:
@@ -190,6 +210,10 @@ class BasicNavbar(QToolBar):
     def _on_history_clicked(self):
         if self.on_history:
             self.on_history()
+
+    def _on_sidebar_toggle_clicked(self, visible):
+        if self.on_sidebar_toggle:
+            self.on_sidebar_toggle(visible)
 
     def _on_address_bar_enter(self):
         if self.on_address_bar_enter:

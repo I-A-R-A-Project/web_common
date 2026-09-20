@@ -6,6 +6,9 @@ from .navbar import address_to_url
 from .tabs import is_blocked_url
 
 
+DEFAULT_SEARCH_URL = "https://www.google.com/search?q={query}"
+
+
 def set_zoom(view_getter, factor, persist=None):
     """Aplica un factor de zoom a la vista activa y notifica su persistencia."""
     view = view_getter()
@@ -64,7 +67,7 @@ def sync_address_bar(
     return True
 
 
-def navigate_view(view_getter, text, *, search_url=None):
+def navigate_view(view_getter, text, *, search_url=DEFAULT_SEARCH_URL):
     """Convierte una dirección y la carga en la vista activa."""
     target = address_to_url(text, search_url=search_url)
     if target is None or is_blocked_url(target):

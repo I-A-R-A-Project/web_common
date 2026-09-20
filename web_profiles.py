@@ -85,6 +85,7 @@ def build_web_profile(
         QWebEngineSettings.WebAttribute.PdfViewerEnabled: True,
         QWebEngineSettings.WebAttribute.AutoLoadIconsForPage: True,
         QWebEngineSettings.WebAttribute.ErrorPageEnabled: True,
+        QWebEngineSettings.WebAttribute.FullScreenSupportEnabled: True,
     }
     if extra_settings:
         defaults.update(extra_settings)
