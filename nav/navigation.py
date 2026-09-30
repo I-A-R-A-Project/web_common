@@ -3,7 +3,7 @@
 from PyQt6.QtCore import QUrl
 
 from .navbar import address_to_url
-from .tabs import is_blocked_url
+from ..browser.tabs import is_blocked_url
 
 
 DEFAULT_SEARCH_URL = "https://www.google.com/search?q={query}"

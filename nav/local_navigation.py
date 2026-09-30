@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QFileDialog
 
-from . import local_viewer
+from ..viewers import local_viewer
 
 
 def open_local_file(parent, open_path):

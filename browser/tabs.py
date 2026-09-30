@@ -7,9 +7,9 @@ from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QMainWindow, QMenu, QTabBar, QTabWidget, QVBoxLayout, QWidget
 
-from .navbar import BasicNavbar, address_to_url, save_web_page
-from .session import is_navigation_title
-from .local_file_types import is_text_file
+from ..nav.navbar import BasicNavbar, address_to_url, save_web_page
+from ..storage.session import is_navigation_title
+from ..viewers.local_file_types import is_text_file
 
 
 VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mkv", ".avi", ".mov")
@@ -488,7 +488,7 @@ class UnifiedWebEnginePage(QWebEnginePage):
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         if is_blocked_url(url):
             return False
-        from . import folder_viewer
+        from ..viewers import folder_viewer
         if is_main_frame and url.scheme() == "browser-action":
             return not folder_viewer.handle_action(self, url)
         if is_main_frame and url.scheme() == "file":

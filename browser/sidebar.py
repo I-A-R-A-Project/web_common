@@ -6,7 +6,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QHBoxLayout, QStackedWidget, QToolButton, QVBoxLayout, QWidget
 from PyQt6.QtCore import QUrl
 
-from .session import icon_from_data, icon_to_data
+from ..storage.session import icon_from_data, icon_to_data
 from .tabs import (
     UnifiedWebEnginePage,
     install_fullscreen_handler,

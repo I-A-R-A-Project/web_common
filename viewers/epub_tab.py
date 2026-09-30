@@ -22,7 +22,7 @@ class EpubTab(QWebEngineView):
         self._load_epub()
 
     def _create_page(self, profile):
-        from .tabs import UnifiedWebEnginePage
+        from ..browser.tabs import UnifiedWebEnginePage
 
         return UnifiedWebEnginePage(profile, self)
 
