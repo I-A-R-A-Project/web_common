@@ -1,8 +1,8 @@
 import os
 
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PyQt6.QtMultimediaWidgets import QVideoWidget
+from PyQt6.QtCore import Qt, QRectF, QUrl
+from PyQt6.QtGui import QPainter
+from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer, QVideoSink
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -12,6 +12,43 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+
+class _VideoFrameWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._image = None
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setStyleSheet("background-color: black;")
+
+    def set_video_frame(self, frame):
+        image = frame.toImage()
+        if image.isNull():
+            return
+        self._image = image
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), Qt.GlobalColor.black)
+        if self._image is None:
+            return
+
+        image_size = self._image.size()
+        scale = min(
+            self.width() / image_size.width(),
+            self.height() / image_size.height(),
+        )
+        width = image_size.width() * scale
+        height = image_size.height() * scale
+        target = QRectF(
+            (self.width() - width) / 2,
+            (self.height() - height) / 2,
+            width,
+            height,
+        )
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.drawImage(target, self._image)
 
 
 def _format_time(ms):
@@ -26,11 +63,11 @@ def _format_time(ms):
 
 
 class VideoTab(QWidget):
-    def __init__(self, path, main_window=None):
+    def __init__(self, path, main_window=None, *, autoplay=True):
         super().__init__()
         self.main_window = main_window
-        self._path = os.path.abspath(path)
-        self._qurl = QUrl.fromLocalFile(self._path)
+        self._path = os.path.abspath(path) if path else ""
+        self._qurl = QUrl.fromLocalFile(self._path) if self._path else QUrl()
         self._duration = 0
         self._seeking = False
 
@@ -38,10 +75,10 @@ class VideoTab(QWidget):
         self.audio_output = QAudioOutput(self)
         self.player.setAudioOutput(self.audio_output)
 
-        self.video_widget = QVideoWidget(self)
-        self.video_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.video_widget.setStyleSheet("background-color: black;")
-        self.player.setVideoOutput(self.video_widget)
+        self.video_widget = _VideoFrameWidget(self)
+        self.video_sink = QVideoSink(self)
+        self.video_sink.videoFrameChanged.connect(self.video_widget.set_video_frame)
+        self.player.setVideoSink(self.video_sink)
 
         self.player.errorOccurred.connect(self._on_error)
         self.player.durationChanged.connect(self._on_duration_changed)
@@ -181,14 +218,22 @@ class VideoTab(QWidget):
             """
         )
 
-        self.player.setSource(self._qurl)
-        self.player.play()
+        if self._qurl.isValid() and not self._qurl.isEmpty():
+            self.player.setSource(self._qurl)
+            if autoplay:
+                self.player.play()
 
     def url(self):
         return self._qurl
 
     def title(self):
-        return os.path.basename(self._path)
+        return os.path.basename(self._path) or "Video"
+
+    def set_stream_url(self, url):
+        self._qurl = url if isinstance(url, QUrl) else QUrl(url)
+        self._path = self._qurl.toString()
+        self.player.setSource(self._qurl)
+        self.player.play()
 
     def setUrl(self, qurl):
         pass

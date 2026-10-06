@@ -187,6 +187,7 @@ def install_tab_context_menu(
     close_tab,
     plus_widget=None,
     toggle_mute=None,
+    open_yt_dlp=None,
     direct_right_click=False,
 ) -> None:
     """Install the common actions shown when right-clicking a tab."""
@@ -213,6 +214,20 @@ def install_tab_context_menu(
                 else page.setAudioMuted(not page.isAudioMuted())
             )
             menu.addSeparator()
+
+        if open_yt_dlp is not None:
+            tab_url = getattr(tab, "url", None)
+            tab_url = tab_url() if callable(tab_url) else None
+            if tab_url is not None:
+                from ..viewers.yt_dlp_tab import is_supported_video_url
+
+                if is_supported_video_url(tab_url):
+                    action = menu.addAction("Abrir video con yt-dlp")
+                    url = tab_url.toString()
+                    action.triggered.connect(
+                        lambda _checked=False, target_url=url: open_yt_dlp(target_url)
+                    )
+                    menu.addSeparator()
 
         close_right = menu.addAction("Cerrar pestañas a la derecha")
         close_right.setEnabled(index < last_real_index)
@@ -250,6 +265,7 @@ def configure_tab_widget(
     current_changed=None,
     tab_bar_clicked=None,
     toggle_mute=None,
+    open_yt_dlp=None,
     direct_right_click=True,
 ) -> None:
     """Configura la pestaña compartida entre MiniBrowser y WebAgent: barra de tabs,
@@ -275,6 +291,7 @@ def configure_tab_widget(
         close_tab=close_tab,
         plus_widget=plus_widget,
         toggle_mute=toggle_mute,
+        open_yt_dlp=open_yt_dlp,
         direct_right_click=direct_right_click,
     )
 

@@ -36,6 +36,23 @@ subpaquetes, por lo que las rutas reflejan la responsabilidad de cada módulo.
   están instaladas sus dependencias opcionales, RAR/7z.
 - `viewers/video_tab.py` y `viewers/epub_tab.py`: visores locales; `video_tab.py` también
   expone `open_video_tab()` para crear y registrar una pestaña de video.
+- `viewers/yt_dlp_tab.py`: reproducción y descarga de URLs reconocidas por
+  extractores específicos instalados de yt-dlp. La opción aparece en el menú
+  contextual de la pestaña; la descarga pregunta dónde guardar el archivo.
+  El extractor genérico se excluye para evitar mostrar la opción en cualquier
+  URL. Requiere instalar `yt-dlp` en el mismo entorno Python que MiniBrowser.
+  Requiere FFmpeg en `PATH`, junto al punto de entrada, o configurado mediante
+  `FFMPEG_LOCATION`. FFmpeg combina audio y video separados durante la
+  reproducción inmediata de lives y transcodifica a H.264/AAC para evitar
+  incompatibilidades AV1 de Qt Multimedia. Las descargas remuxan a MKV por
+  defecto. Si el formato principal es solo video, se selecciona la mejor pista
+  de audio disponible. YouTube puede omitir `acodec` aunque yt-dlp marque el
+  formato como `audio only`; ese indicador también se usa para mapear la pista
+  a FFmpeg. Si no se obtiene una pista, se informa en vez de reproducir en silencio.
+  La lista oficial de extractores está en
+  [yt-dlp supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md);
+  la compatibilidad real puede cambiar por sitio. La reproducción depende de
+  los formatos y codecs admitidos por Qt Multimedia.
 - `storage/history.py`: persistencia SQLite y diálogo del historial agrupado por
   sesión de navegación.
 - `browser/sidebar.py` y `downloads/downloader_handoff.py`: paneles compartidos y entrega de
