@@ -29,27 +29,38 @@ def downloader_script_from(start_path):
 
 
 def launch_downloader(entries, start_path):
-    executable = downloader_executable_from(start_path)
-    if executable is not None:
-        command = [str(executable)]
-        working_dir = executable.parent
-    else:
-        script = downloader_script_from(start_path)
-        if script is None:
-            return False, "No se encontró Downloader instalado ni Downloader/download_manager.py"
+    script = downloader_script_from(start_path)
+    if script is not None:
         command = [sys.executable, str(script)]
         working_dir = script.parent
+    else:
+        executable = downloader_executable_from(start_path)
+        if executable is None:
+            return False, "No se encontró Downloader instalado ni Downloader/download_manager.py"
+        command = [str(executable)]
+        working_dir = executable.parent
 
     with tempfile.NamedTemporaryFile(
         mode="w",
         delete=False,
+        prefix="iara-download-handoff-",
         suffix=".json",
         encoding="utf-8",
     ) as handle:
         json.dump(entries, handle, indent=2, ensure_ascii=False)
         json_path = handle.name
 
-    subprocess.Popen([*command, json_path], cwd=str(working_dir))
+    try:
+        subprocess.Popen([*command, json_path], cwd=str(working_dir))
+    except OSError as exc:
+        message = str(exc)
+        try:
+            os.unlink(json_path)
+        except FileNotFoundError:
+            pass
+        except OSError as cleanup_error:
+            message = f"{message}; no se pudo limpiar {json_path}: {cleanup_error}"
+        return False, message
     return True, ""
 
 

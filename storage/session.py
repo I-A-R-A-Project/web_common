@@ -67,7 +67,13 @@ _icon_data = icon_to_data
 _icon_from_data = icon_from_data
 
 
-def collect_tabs(tab_widget, skip_widgets=(), metadata_for_widget=None):
+def collect_tabs(
+    tab_widget,
+    skip_widgets=(),
+    metadata_for_widget=None,
+    *,
+    include_blank=False,
+):
     skip_ids = {id(widget) for widget in skip_widgets if widget is not None}
     tabs = []
     for index in range(tab_widget.count()):
@@ -75,6 +81,13 @@ def collect_tabs(tab_widget, skip_widgets=(), metadata_for_widget=None):
         if widget is None or id(widget) in skip_ids:
             continue
         url = widget_url(widget)
+        if not url and include_blank and hasattr(widget, "url"):
+            try:
+                current_url = widget.url().toString()
+            except (AttributeError, RuntimeError):
+                current_url = ""
+            if current_url == "about:blank":
+                url = current_url
         if not url:
             continue
         entry = {
@@ -109,12 +122,25 @@ def is_navigation_title(title):
     )
 
 
-def save_tab_session(path, tab_widget, skip_widgets=(), metadata_for_widget=None, extra=None):
+def save_tab_session(
+    path,
+    tab_widget,
+    skip_widgets=(),
+    metadata_for_widget=None,
+    extra=None,
+    *,
+    include_blank=False,
+):
     session_path = Path(path)
     session_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": 2,
-        "tabs": collect_tabs(tab_widget, skip_widgets, metadata_for_widget),
+        "tabs": collect_tabs(
+            tab_widget,
+            skip_widgets,
+            metadata_for_widget,
+            include_blank=include_blank,
+        ),
         "active_index": tab_widget.currentIndex(),
         "saved": datetime.now().isoformat(),
     }

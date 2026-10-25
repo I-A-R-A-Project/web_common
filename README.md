@@ -30,6 +30,8 @@ subpaquetes, por lo que las rutas reflejan la responsabilidad de cada módulo.
   de red, y aplica el reemplazo por host mediante un interceptor;
   `build_web_profile(..., site_user_agents=...)` permite reemplazar ese mapa.
 - `storage/session.py`: restauración, metadatos y persistencia de sesiones.
+  `save_tab_session(..., include_blank=True)` permite a una aplicación persistir
+  pestañas `about:blank` intencionales junto con metadatos propios de la app.
 - `viewers/local_viewer.py` y `viewers/folder_viewer.py`: archivos locales, carpetas,
   edición, Git y navegación dentro de archivos comprimidos. `archive_entries()`
   lista contenidos y `extract_archive()` extrae ZIP, TAR/GZIP/BZIP2 y, cuando
